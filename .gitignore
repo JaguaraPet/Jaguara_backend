@@ -1,0 +1,16 @@
+# compilação
+/dist
+/coverage
+*.tsbuildinfo
+
+# dependências
+/node_modules
+
+# ambiente
+.env
+.env.*
+!.env.example
+
+# logs e sistema
+*.log
+.DS_Store
