@@ -17,11 +17,11 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
-    "test": "jest",
+    "test": "npm run test:unit && npm run test:e2e",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "start:worker": "node dist/worker",
     "start:worker:dev": "nest start --watch --entryFile worker",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
@@ -32,7 +32,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
-    "prisma:seed:teste": "ts-node --transpile-only prisma/seed.ts --teste"
+    "prisma:seed:teste": "ts-node --transpile-only prisma/seed.ts --teste",
+    "test:unit": "jest"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -55,6 +56,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@testcontainers/postgresql": "12.2.1",
+    "@testcontainers/redis": "12.2.1",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
@@ -87,18 +90,28 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s",
-      "!generated/**",
-      "!main.ts",
-      "!worker.ts",
-      "!**/*.module.ts"
+      "modulos/**/dominio/**/*.ts",
+      "modulos/**/aplicacao/**/*.ts",
+      "!**/*.spec.ts"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "coverageReporters": [
+      "text-summary",
+      "lcov",
+      "json-summary"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 70
+      }
+    }
   },
   "allowScripts": {
     "prisma@7.10.1": true,
     "@prisma/engines@7.10.1": true,
-    "@parcel/watcher": false
+    "@parcel/watcher": false,
+    "ssh2": false,
+    "protobufjs": false
   }
 }

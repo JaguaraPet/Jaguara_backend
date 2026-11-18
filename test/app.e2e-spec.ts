@@ -19,7 +19,7 @@ describe('API (e2e)', () => {
     await app.close();
   });
 
-  it('GET /health responde ok', async () => {
+  it('deve responder 200 quando GET /health é chamado', async () => {
     const resposta = await request(app.getHttpServer())
       .get('/health')
       .expect(200);
