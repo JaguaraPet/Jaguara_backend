@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from './compartilhado/prisma/prisma.module';
 import { StatusModule } from './compartilhado/status/status.module';
 import { AcessoModule } from './modulos/acesso/acesso.module';
 import { PetModule } from './modulos/pet/pet.module';
@@ -14,6 +15,7 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
 
 @Module({
   imports: [
+    PrismaModule,
     StatusModule,
     AcessoModule,
     PetModule,

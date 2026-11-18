@@ -41,6 +41,19 @@ Na primeira subida, o script `docker/postgres/init/01-bancos.sql` cria o banco d
 
 As credenciais acima são só do ambiente local.
 
+## Modelo de dados (Prisma)
+
+O schema `prisma/schema.prisma` representa as 57 tabelas e os 42 enums do MOD-03, com modelos em PascalCase e campos em camelCase mapeados para os nomes do banco (`@@map` e `@map`). A migração inicial `prisma/migrations/20261115120000_inicial` é o script validado do MOD-03 e inclui as restrições que o Prisma não expressa (CHECK e EXCLUDE contra agendamentos sobrepostos).
+
+```bash
+npm run prisma:deploy     # aplica as migrações no banco do DATABASE_URL
+npm run prisma:migrate    # cria uma migração nova a partir de mudanças no schema
+npm run prisma:generate   # gera o Prisma Client em src/generated (roda também no npm install)
+npm run prisma:studio     # abre o Prisma Studio
+```
+
+Mudanças no modelo: altere o MOD-03 e o `schema.prisma` juntos e gere a migração com `npm run prisma:migrate -- --name <descricao>`. Restrições CHECK e EXCLUDE novas vão escritas à mão no `migration.sql`.
+
 ## Dependências
 
 - Gerenciador: **npm** (versão 11 ou maior), com o `package-lock.json` versionado. Instale com `npm ci` para reproduzir exatamente as versões do lock.

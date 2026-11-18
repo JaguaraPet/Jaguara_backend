@@ -1,0 +1,1404 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  previewFeatures     = ["partialIndexes"]
+  moduleFormat        = "cjs"
+  // Imports sem extensão: compatível com o build CommonJS do Nest, o Jest e o ts-node.
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Administrador {
+  id                 String               @id @db.Uuid
+  nome               String               @db.VarChar(255)
+  criadoEm           DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario            Usuario              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_administrador_heranca")
+  chamadoSuporte     ChamadoSuporte[]
+  integracao         Integracao[]
+  intervencaoSuporte IntervencaoSuporte[]
+  webhook            Webhook[]
+
+  @@map("administrador")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+
+model Agendamento {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHoraInicio  DateTime               @map("data_hora_inicio") @db.Timestamptz(6)
+  dataHoraFim     DateTime               @map("data_hora_fim") @db.Timestamptz(6)
+  precoContratado Decimal                @map("preco_contratado") @db.Decimal(12, 2)
+  status          StatusAgendamento
+  criadoEm        DateTime               @map("criado_em") @db.Timestamptz(6)
+  solicitacaoId   String?                @unique @map("solicitacao_id") @db.Uuid
+  servicoId       String                 @map("servico_id") @db.Uuid
+  petId           String                 @map("pet_id") @db.Uuid
+  profissionalId  String?                @map("profissional_id") @db.Uuid
+  recursoId       String?                @map("recurso_id") @db.Uuid
+  eventoId        String?                @map("evento_id") @db.Uuid
+  atualizadoEm    DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  evento          EventoCalendario?      @relation(fields: [eventoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_agendamento_evento_id")
+  pet             Pet                    @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_agendamento_pet_id")
+  profissional    FuncionarioEnterprise? @relation(fields: [profissionalId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_agendamento_profissional_id")
+  recurso         Recurso?               @relation(fields: [recursoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_agendamento_recurso_id")
+  servico         Servico                @relation(fields: [servicoId], references: [id], onUpdate: NoAction, map: "fk_agendamento_servico_id")
+  solicitacao     SolicitacaoServico?    @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_agendamento_solicitacao_id")
+  atendimento     Atendimento?
+  pagamento       Pagamento[]
+
+  @@index([dataHoraInicio], map: "ix_agendamento_inicio")
+  @@map("agendamento")
+}
+
+model AlergiaRestricao {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo              TipoAlergiaRestricao
+  descricao         String
+  gravidade         Gravidade
+  dataIdentificacao DateTime?            @map("data_identificacao") @db.Date
+  observacoes       String?
+  petId             String               @map("pet_id") @db.Uuid
+  criadoEm          DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet               Pet                  @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_alergia_restricao_pet_id")
+
+  @@map("alergia_restricao")
+}
+
+model Assinatura {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plano        TipoPlano
+  dataInicio   DateTime         @map("data_inicio") @db.Date
+  dataFim      DateTime?        @map("data_fim") @db.Date
+  status       StatusAssinatura
+  tutorId      String           @map("tutor_id") @db.Uuid
+  criadoEm     DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  tutor        Tutor            @relation(fields: [tutorId], references: [id], onUpdate: NoAction, map: "fk_assinatura_tutor_id")
+  pagamento    Pagamento[]
+
+  @@map("assinatura")
+}
+
+model Atendimento {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHoraInicio          DateTime               @map("data_hora_inicio") @db.Timestamptz(6)
+  dataHoraFim             DateTime?              @map("data_hora_fim") @db.Timestamptz(6)
+  procedimentosRealizados String                 @map("procedimentos_realizados")
+  observacoesClinicas     String?                @map("observacoes_clinicas")
+  status                  StatusAtendimento
+  finalizadoEm            DateTime?              @map("finalizado_em") @db.Timestamptz(6)
+  agendamentoId           String?                @unique @map("agendamento_id") @db.Uuid
+  petId                   String                 @map("pet_id") @db.Uuid
+  registradoPorId         String                 @map("registrado_por_id") @db.Uuid
+  profissionalId          String?                @map("profissional_id") @db.Uuid
+  criadoEm                DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm            DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento             Agendamento?           @relation(fields: [agendamentoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_atendimento_agendamento_id")
+  pet                     Pet                    @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_atendimento_pet_id")
+  profissional            FuncionarioEnterprise? @relation(fields: [profissionalId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_atendimento_profissional_id")
+  registradoPor           Usuario                @relation(fields: [registradoPorId], references: [id], onUpdate: NoAction, map: "fk_atendimento_registrado_por_id")
+  itemAtendimento         ItemAtendimento[]
+
+  @@map("atendimento")
+}
+
+model CalendarioExterno {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provedor            ProvedorCalendario
+  contaExterna        String             @map("conta_externa") @db.VarChar(255)
+  tokenAutorizacao    String             @map("token_autorizacao") @db.VarChar(255)
+  autorizado          Boolean
+  ultimaSincronizacao DateTime?          @map("ultima_sincronizacao") @db.Timestamptz(6)
+  usuarioId           String             @map("usuario_id") @db.Uuid
+  criadoEm            DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario             Usuario            @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_calendario_externo_usuario_id")
+  eventoCalendario    EventoCalendario[]
+
+  @@map("calendario_externo")
+}
+
+model CategoriaDespesa {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String    @unique @db.VarChar(255)
+  descricao    String?
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  despesa      Despesa[]
+
+  @@map("categoria_despesa")
+}
+
+model ChamadoSuporte {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  protocolo          String               @unique @db.VarChar(255)
+  titulo             String               @db.VarChar(255)
+  descricao          String
+  status             StatusChamado
+  dataAbertura       DateTime             @map("data_abertura") @db.Timestamptz(6)
+  dataFechamento     DateTime?            @map("data_fechamento") @db.Timestamptz(6)
+  solicitanteId      String               @map("solicitante_id") @db.Uuid
+  atendenteId        String?              @map("atendente_id") @db.Uuid
+  criadoEm           DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  atendente          Administrador?       @relation(fields: [atendenteId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_chamado_suporte_atendente_id")
+  solicitante        Usuario              @relation(fields: [solicitanteId], references: [id], onUpdate: NoAction, map: "fk_chamado_suporte_solicitante_id")
+  intervencaoSuporte IntervencaoSuporte[]
+
+  @@map("chamado_suporte")
+}
+
+model Cliente {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo        String            @db.VarChar(255)
+  nome          String            @db.VarChar(255)
+  cpfCifrado    Bytes?            @map("cpf_cifrado")
+  cpfHash       String?           @map("cpf_hash") @db.Char(64)
+  telefone      String?           @db.VarChar(20)
+  email         String?           @db.VarChar(255)
+  dataVinculo   DateTime          @map("data_vinculo") @db.Date
+  observacoes   String?
+  ativo         Boolean
+  empresaId     String            @map("empresa_id") @db.Uuid
+  tutorId       String?           @map("tutor_id") @db.Uuid
+  criadoEm      DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  empresa       EmpresaEnterprise @relation(fields: [empresaId], references: [id], onUpdate: NoAction, map: "fk_cliente_empresa_id")
+  tutor         Tutor?            @relation(fields: [tutorId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cliente_tutor_id")
+  clientePet    ClientePet[]
+  consentimento Consentimento[]
+
+  @@unique([empresaId, tutorId], map: "uq_cliente")
+  @@unique([empresaId, cpfHash], map: "uq_cliente_cpf")
+  @@map("cliente")
+}
+
+model ClientePet {
+  clienteId String  @map("cliente_id") @db.Uuid
+  petId     String  @map("pet_id") @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cliente_pet_cliente_id")
+  pet       Pet     @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_cliente_pet_pet_id")
+
+  @@id([clienteId, petId])
+  @@map("cliente_pet")
+}
+
+model CompartilhamentoPet {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  destinatarioEmail String?                @map("destinatario_email") @db.VarChar(255)
+  escopos           EscopoAcesso[]
+  token             String                 @unique @db.VarChar(255)
+  dataConcessao     DateTime               @map("data_concessao") @db.Timestamptz(6)
+  dataExpiracao     DateTime?              @map("data_expiracao") @db.Timestamptz(6)
+  status            StatusCompartilhamento
+  petId             String                 @map("pet_id") @db.Uuid
+  empresaId         String?                @map("empresa_id") @db.Uuid
+  criadoEm          DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm      DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  empresa           EmpresaEnterprise?     @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_compartilhamento_pet_empresa_id")
+  pet               Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_compartilhamento_pet_pet_id")
+
+  @@map("compartilhamento_pet")
+}
+
+model ConfiguracaoNotificacao {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipoEvento          TipoEvento       @map("tipo_evento")
+  canal               CanalNotificacao
+  antecedenciaMinutos Int              @map("antecedencia_minutos")
+  ativa               Boolean
+  usuarioId           String           @map("usuario_id") @db.Uuid
+  criadoEm            DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario             Usuario          @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_configuracao_notificacao_usuario_id")
+
+  @@map("configuracao_notificacao")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Consentimento {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aceito          Boolean
+  dataAceite      DateTime               @map("data_aceite") @db.Timestamptz(6)
+  dataRevogacao   DateTime?              @map("data_revogacao") @db.Timestamptz(6)
+  ipOrigem        String?                @map("ip_origem") @db.VarChar(255)
+  meioColeta      MeioColeta             @map("meio_coleta")
+  evidenciaUrl    String?                @map("evidencia_url") @db.VarChar(2048)
+  tokenLink       String?                @unique @map("token_link") @db.VarChar(255)
+  usuarioId       String?                @map("usuario_id") @db.Uuid
+  clienteId       String?                @map("cliente_id") @db.Uuid
+  registradoPorId String?                @map("registrado_por_id") @db.Uuid
+  termoId         String                 @map("termo_id") @db.Uuid
+  criadoEm        DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  cliente         Cliente?               @relation(fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_consentimento_cliente_id")
+  registradoPor   FuncionarioEnterprise? @relation(fields: [registradoPorId], references: [id], onUpdate: NoAction, map: "fk_consentimento_registrado_por_id")
+  termo           TermoUso               @relation(fields: [termoId], references: [id], onUpdate: NoAction, map: "fk_consentimento_termo_id")
+  usuario         Usuario?               @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_consentimento_usuario_id")
+
+  @@map("consentimento")
+}
+
+model Conversa {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo         TipoConversa
+  dataInicio   DateTime           @map("data_inicio") @db.Timestamptz(6)
+  status       StatusConversa
+  tutorId      String             @map("tutor_id") @db.Uuid
+  empresaId    String?            @map("empresa_id") @db.Uuid
+  petId        String?            @map("pet_id") @db.Uuid
+  criadoEm     DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  empresa      EmpresaEnterprise? @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_conversa_empresa_id")
+  pet          Pet?               @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversa_pet_id")
+  tutor        Tutor              @relation(fields: [tutorId], references: [id], onUpdate: NoAction, map: "fk_conversa_tutor_id")
+  mensagem     Mensagem[]
+
+  @@map("conversa")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Despesa {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  descricao      String
+  valor          Decimal          @db.Decimal(12, 2)
+  data           DateTime         @db.Date
+  comprovanteUrl String?          @map("comprovante_url") @db.VarChar(2048)
+  petId          String           @map("pet_id") @db.Uuid
+  categoriaId    String           @map("categoria_id") @db.Uuid
+  pagamentoId    String?          @map("pagamento_id") @db.Uuid
+  criadoEm       DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  categoria      CategoriaDespesa @relation(fields: [categoriaId], references: [id], onUpdate: NoAction, map: "fk_despesa_categoria_id")
+  pagamento      Pagamento?       @relation(fields: [pagamentoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_despesa_pagamento_id")
+  pet            Pet              @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_despesa_pet_id")
+
+  @@map("despesa")
+}
+
+model DocumentoPet {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo       String        @db.VarChar(255)
+  tipo         TipoDocumento
+  arquivoUrl   String        @map("arquivo_url") @db.VarChar(2048)
+  dataEmissao  DateTime?     @map("data_emissao") @db.Date
+  dataValidade DateTime?     @map("data_validade") @db.Date
+  dataUpload   DateTime      @map("data_upload") @db.Timestamptz(6)
+  petId        String        @map("pet_id") @db.Uuid
+  criadoEm     DateTime      @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime      @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet          Pet           @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_documento_pet_pet_id")
+
+  @@map("documento_pet")
+}
+
+model EmpresaEnterprise {
+  id                    String                  @id @db.Uuid
+  cnpj                  String                  @unique @db.Char(14)
+  razaoSocial           String                  @map("razao_social") @db.VarChar(255)
+  nomeFantasia          String                  @map("nome_fantasia") @db.VarChar(255)
+  tipo                  TipoEmpresa
+  enderecoCep           String                  @map("endereco_cep") @db.VarChar(10)
+  enderecoLogradouro    String                  @map("endereco_logradouro") @db.VarChar(120)
+  enderecoNumero        String                  @map("endereco_numero") @db.VarChar(10)
+  enderecoComplemento   String?                 @map("endereco_complemento") @db.VarChar(120)
+  enderecoBairro        String                  @map("endereco_bairro") @db.VarChar(120)
+  enderecoCidade        String                  @map("endereco_cidade") @db.VarChar(120)
+  enderecoUf            String                  @map("endereco_uf") @db.Char(2)
+  criadoEm              DateTime                @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm          DateTime                @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  cliente               Cliente[]
+  compartilhamentoPet   CompartilhamentoPet[]
+  conversa              Conversa[]
+  usuario               Usuario                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_empresa_enterprise_heranca")
+  funcionarioEnterprise FuncionarioEnterprise[]
+  pagamento             Pagamento[]
+  perfilAcesso          PerfilAcesso[]
+  recurso               Recurso[]
+  servico               Servico[]
+
+  @@map("empresa_enterprise")
+}
+
+model Especie {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String   @unique @db.VarChar(255)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  raca         Raca[]
+
+  @@map("especie")
+}
+
+model EventoCalendario {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo              String             @db.VarChar(255)
+  descricao           String?
+  tipo                TipoEvento
+  dataHoraInicio      DateTime           @map("data_hora_inicio") @db.Timestamptz(6)
+  dataHoraFim         DateTime?          @map("data_hora_fim") @db.Timestamptz(6)
+  local               String?            @db.VarChar(255)
+  origem              OrigemEvento
+  idExterno           String?            @map("id_externo") @db.VarChar(255)
+  petId               String             @map("pet_id") @db.Uuid
+  criadoPorId         String             @map("criado_por_id") @db.Uuid
+  calendarioExternoId String?            @map("calendario_externo_id") @db.Uuid
+  criadoEm            DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento         Agendamento[]
+  calendarioExterno   CalendarioExterno? @relation(fields: [calendarioExternoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_evento_calendario_calendario_externo_id")
+  criadoPor           Usuario            @relation(fields: [criadoPorId], references: [id], onUpdate: NoAction, map: "fk_evento_calendario_criado_por_id")
+  pet                 Pet                @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_evento_calendario_pet_id")
+
+  @@index([petId, dataHoraInicio], map: "ix_evento_pet_inicio")
+  @@map("evento_calendario")
+}
+
+model Exame {
+  id                  String          @id @db.Uuid
+  tipoExame           String          @map("tipo_exame") @db.VarChar(255)
+  dataRealizacao      DateTime        @map("data_realizacao") @db.Date
+  laboratorio         String?         @db.VarChar(255)
+  resultado           String?
+  arquivoResultadoUrl String?         @map("arquivo_resultado_url") @db.VarChar(2048)
+  criadoEm            DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  registroClinico     RegistroClinico @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_exame_heranca")
+
+  @@map("exame")
+}
+
+model FuncionarioEnterprise {
+  id             String            @id @db.Uuid
+  nome           String            @db.VarChar(255)
+  cpfCifrado     Bytes             @map("cpf_cifrado")
+  cpfHash        String            @unique @map("cpf_hash") @db.Char(64)
+  cargo          String?           @db.VarChar(255)
+  ativo          Boolean
+  empresaId      String            @map("empresa_id") @db.Uuid
+  criadoEm       DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento    Agendamento[]
+  atendimento    Atendimento[]
+  consentimento  Consentimento[]
+  empresa        EmpresaEnterprise @relation(fields: [empresaId], references: [id], onUpdate: NoAction, map: "fk_funcionario_enterprise_empresa_id")
+  usuario        Usuario           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_funcionario_enterprise_heranca")
+  horarioAtuacao HorarioAtuacao[]
+
+  @@map("funcionario_enterprise")
+}
+
+model HistoricoSenha {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senhaHash    String   @map("senha_hash") @db.VarChar(255)
+  criadaEm     DateTime @map("criada_em") @db.Timestamptz(6)
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_historico_senha_usuario_id")
+
+  @@map("historico_senha")
+}
+
+model HistoricoSolicitacao {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHora       DateTime           @map("data_hora") @db.Timestamptz(6)
+  statusAnterior StatusSolicitacao? @map("status_anterior")
+  statusNovo     StatusSolicitacao  @map("status_novo")
+  descricao      String?
+  solicitacaoId  String             @map("solicitacao_id") @db.Uuid
+  autorId        String             @map("autor_id") @db.Uuid
+  criadoEm       DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  autor          Usuario            @relation(fields: [autorId], references: [id], onUpdate: NoAction, map: "fk_historico_solicitacao_autor_id")
+  solicitacao    SolicitacaoServico @relation(fields: [solicitacaoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_historico_solicitacao_solicitacao_id")
+
+  @@map("historico_solicitacao")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model HorarioAtuacao {
+  id            String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  diaSemana     DiaSemana              @map("dia_semana")
+  horaInicio    DateTime               @map("hora_inicio") @db.Time(6)
+  horaFim       DateTime               @map("hora_fim") @db.Time(6)
+  funcionarioId String?                @map("funcionario_id") @db.Uuid
+  recursoId     String?                @map("recurso_id") @db.Uuid
+  criadoEm      DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  funcionario   FuncionarioEnterprise? @relation(fields: [funcionarioId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_horario_atuacao_funcionario_id")
+  recurso       Recurso?               @relation(fields: [recursoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_horario_atuacao_recurso_id")
+
+  @@map("horario_atuacao")
+}
+
+model IdentidadeExterna {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provedor      ProvedorIdentidade
+  idExterno     String             @map("id_externo") @db.VarChar(255)
+  emailProvedor String?            @map("email_provedor") @db.VarChar(255)
+  dataVinculo   DateTime           @map("data_vinculo") @db.Timestamptz(6)
+  usuarioId     String             @map("usuario_id") @db.Uuid
+  criadoEm      DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario       Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_identidade_externa_usuario_id")
+
+  @@unique([provedor, idExterno], map: "uq_identidade_externa")
+  @@map("identidade_externa")
+}
+
+model Integracao {
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String         @db.VarChar(255)
+  tipo                TipoIntegracao
+  endpointUrl         String         @map("endpoint_url") @db.VarChar(2048)
+  credenciaisCifradas String         @map("credenciais_cifradas") @db.VarChar(255)
+  parametros          String?
+  ativa               Boolean
+  configuradaPorId    String         @map("configurada_por_id") @db.Uuid
+  criadoEm            DateTime       @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime       @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  configuradaPor      Administrador  @relation(fields: [configuradaPorId], references: [id], onUpdate: NoAction, map: "fk_integracao_configurada_por_id")
+  webhook             Webhook[]
+
+  @@map("integracao")
+}
+
+model IntervencaoSuporte {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHora       DateTime       @map("data_hora") @db.Timestamptz(6)
+  descricao      String
+  acaoExecutada  String         @map("acao_executada") @db.VarChar(255)
+  chamadoId      String         @map("chamado_id") @db.Uuid
+  executadaPorId String         @map("executada_por_id") @db.Uuid
+  criadoEm       DateTime       @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime       @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  chamado        ChamadoSuporte @relation(fields: [chamadoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_intervencao_suporte_chamado_id")
+  executadaPor   Administrador  @relation(fields: [executadaPorId], references: [id], onUpdate: NoAction, map: "fk_intervencao_suporte_executada_por_id")
+
+  @@map("intervencao_suporte")
+}
+
+model ItemAtendimento {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quantidade    Int
+  valorUnitario Decimal     @map("valor_unitario") @db.Decimal(12, 2)
+  observacao    String?
+  atendimentoId String      @map("atendimento_id") @db.Uuid
+  servicoId     String      @map("servico_id") @db.Uuid
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime    @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  atendimento   Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_item_atendimento_atendimento_id")
+  servico       Servico     @relation(fields: [servicoId], references: [id], onUpdate: NoAction, map: "fk_item_atendimento_servico_id")
+
+  @@map("item_atendimento")
+}
+
+model ItemMemorial {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo         TipoItemMemorial
+  conteudo     String?
+  arquivoUrl   String?          @map("arquivo_url") @db.VarChar(2048)
+  dataRegistro DateTime         @map("data_registro") @db.Timestamptz(6)
+  memorialId   String           @map("memorial_id") @db.Uuid
+  criadoEm     DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  memorial     Memorial         @relation(fields: [memorialId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_item_memorial_memorial_id")
+
+  @@map("item_memorial")
+}
+
+model LogAuditoria {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHora     DateTime @map("data_hora") @db.Timestamptz(6)
+  acao         String   @db.VarChar(255)
+  entidade     String   @db.VarChar(255)
+  entidadeId   String   @map("entidade_id") @db.VarChar(255)
+  detalhes     String?
+  nivel        NivelLog
+  ipOrigem     String?  @map("ip_origem") @db.VarChar(255)
+  autorId      String?  @map("autor_id") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  autor        Usuario? @relation(fields: [autorId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_log_auditoria_autor_id")
+
+  @@index([dataHora(sort: Desc), nivel], map: "ix_log_auditoria_data")
+  @@map("log_auditoria")
+}
+
+model Memorial {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mensagem     String
+  dataCriacao  DateTime       @map("data_criacao") @db.Timestamptz(6)
+  publico      Boolean
+  petId        String         @unique @map("pet_id") @db.Uuid
+  criadoEm     DateTime       @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime       @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  itemMemorial ItemMemorial[]
+  pet          Pet            @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_memorial_pet_id")
+
+  @@map("memorial")
+}
+
+model Mensagem {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conteudo      String
+  dataHoraEnvio DateTime @map("data_hora_envio") @db.Timestamptz(6)
+  lida          Boolean
+  anexoUrl      String?  @map("anexo_url") @db.VarChar(2048)
+  conversaId    String   @map("conversa_id") @db.Uuid
+  remetenteId   String?  @map("remetente_id") @db.Uuid
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  conversa      Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mensagem_conversa_id")
+  remetente     Usuario? @relation(fields: [remetenteId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_mensagem_remetente_id")
+
+  @@index([conversaId, dataHoraEnvio], map: "ix_mensagem_conversa")
+  @@map("mensagem")
+}
+
+model Notificacao {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo         String            @db.VarChar(255)
+  mensagem       String
+  canal          CanalNotificacao
+  dataProgramada DateTime          @map("data_programada") @db.Timestamptz(6)
+  dataEnvio      DateTime?         @map("data_envio") @db.Timestamptz(6)
+  status         StatusNotificacao
+  tentativas     Int
+  destinatarioId String            @map("destinatario_id") @db.Uuid
+  origemTipo     String            @map("origem_tipo") @db.VarChar(40)
+  origemId       String            @map("origem_id") @db.Uuid
+  criadoEm       DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  destinatario   Usuario           @relation(fields: [destinatarioId], references: [id], onUpdate: NoAction, map: "fk_notificacao_destinatario_id")
+
+  @@index([dataProgramada], map: "ix_notificacao_pendente", where: raw("(status = 'AGENDADA'::status_notificacao)"))
+  @@map("notificacao")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Pagamento {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigoTransacao      String                 @unique @map("codigo_transacao") @db.VarChar(255)
+  valor                Decimal                @db.Decimal(12, 2)
+  dataHora             DateTime               @map("data_hora") @db.Timestamptz(6)
+  metodo               MetodoPagamento
+  status               StatusPagamento
+  dataConfirmacao      DateTime?              @map("data_confirmacao") @db.Timestamptz(6)
+  notaFiscalUrl        String?                @map("nota_fiscal_url") @db.VarChar(2048)
+  pagadorId            String                 @map("pagador_id") @db.Uuid
+  recebedorId          String?                @map("recebedor_id") @db.Uuid
+  agendamentoId        String?                @map("agendamento_id") @db.Uuid
+  assinaturaId         String?                @map("assinatura_id") @db.Uuid
+  criadoEm             DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm         DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  despesa              Despesa[]
+  agendamento          Agendamento?           @relation(fields: [agendamentoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_pagamento_agendamento_id")
+  assinatura           Assinatura?            @relation(fields: [assinaturaId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_pagamento_assinatura_id")
+  pagador              Tutor                  @relation(fields: [pagadorId], references: [id], onUpdate: NoAction, map: "fk_pagamento_pagador_id")
+  recebedor            EmpresaEnterprise?     @relation(fields: [recebedorId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_pagamento_recebedor_id")
+  solicitacaoReembolso SolicitacaoReembolso[]
+
+  @@index([pagadorId, dataHora(sort: Desc)], map: "ix_pagamento_pagador")
+  @@map("pagamento")
+}
+
+model PerfilAcesso {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome            String             @db.VarChar(255)
+  descricao       String?
+  escopo          EscopoPerfil
+  empresaId       String?            @map("empresa_id") @db.Uuid
+  criadoEm        DateTime           @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime           @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  empresa         EmpresaEnterprise? @relation(fields: [empresaId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_perfil_acesso_empresa_id")
+  perfilPermissao PerfilPermissao[]
+  usuario         Usuario[]
+
+  @@map("perfil_acesso")
+}
+
+model PerfilPermissao {
+  perfilAcessoId String       @map("perfil_acesso_id") @db.Uuid
+  permissaoId    String       @map("permissao_id") @db.Uuid
+  perfilAcesso   PerfilAcesso @relation(fields: [perfilAcessoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  permissao      Permissao    @relation(fields: [permissaoId], references: [id], onUpdate: NoAction)
+
+  @@id([perfilAcessoId, permissaoId])
+  @@map("perfil_permissao")
+}
+
+model Permissao {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo          String            @unique @db.VarChar(255)
+  descricao       String
+  modulo          String            @db.VarChar(255)
+  criadoEm        DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  perfilPermissao PerfilPermissao[]
+
+  @@map("permissao")
+}
+
+model Pet {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                String                @db.VarChar(255)
+  dataNascimento      DateTime?             @map("data_nascimento") @db.Date
+  sexo                Sexo
+  pesoKg              Decimal?              @map("peso_kg") @db.Decimal(10, 2)
+  cor                 String?               @db.VarChar(255)
+  microchip           String?               @unique @db.VarChar(255)
+  castrado            Boolean
+  fotoUrl             String?               @map("foto_url") @db.VarChar(2048)
+  status              StatusPet
+  dataFalecimento     DateTime?             @map("data_falecimento") @db.Date
+  racaId              String                @map("raca_id") @db.Uuid
+  criadoEm            DateTime              @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime              @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento         Agendamento[]
+  alergiaRestricao    AlergiaRestricao[]
+  atendimento         Atendimento[]
+  clientePet          ClientePet[]
+  compartilhamentoPet CompartilhamentoPet[]
+  conversa            Conversa[]
+  despesa             Despesa[]
+  documentoPet        DocumentoPet[]
+  eventoCalendario    EventoCalendario[]
+  memorial            Memorial?
+  raca                Raca                  @relation(fields: [racaId], references: [id], onUpdate: NoAction, map: "fk_pet_raca_id")
+  planoAlimentar      PlanoAlimentar[]
+  registroAlimentacao RegistroAlimentacao[]
+  registroClinico     RegistroClinico[]
+  responsavelPet      ResponsavelPet[]
+  solicitacaoServico  SolicitacaoServico[]
+
+  @@index([racaId], map: "ix_pet_raca")
+  @@map("pet")
+}
+
+model PlanoAlimentar {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  alimento            String                @db.VarChar(255)
+  metaDiariaGramas    Decimal               @map("meta_diaria_gramas") @db.Decimal(10, 2)
+  limiteDiarioGramas  Decimal?              @map("limite_diario_gramas") @db.Decimal(10, 2)
+  refeicoesPorDia     Int                   @map("refeicoes_por_dia")
+  dataInicio          DateTime              @map("data_inicio") @db.Date
+  ativo               Boolean
+  petId               String                @map("pet_id") @db.Uuid
+  criadoEm            DateTime              @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime              @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet                 Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_plano_alimentar_pet_id")
+  registroAlimentacao RegistroAlimentacao[]
+
+  @@map("plano_alimentar")
+}
+
+model Raca {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String   @db.VarChar(255)
+  especieId    String   @map("especie_id") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet          Pet[]
+  especie      Especie  @relation(fields: [especieId], references: [id], onUpdate: NoAction, map: "fk_raca_especie_id")
+
+  @@map("raca")
+}
+
+model Recurso {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome           String            @db.VarChar(255)
+  tipo           TipoRecurso
+  ativo          Boolean
+  empresaId      String            @map("empresa_id") @db.Uuid
+  criadoEm       DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm   DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento    Agendamento[]
+  horarioAtuacao HorarioAtuacao[]
+  empresa        EmpresaEnterprise @relation(fields: [empresaId], references: [id], onUpdate: NoAction, map: "fk_recurso_empresa_id")
+
+  @@map("recurso")
+}
+
+model RegistroAlimentacao {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataHora         DateTime        @map("data_hora") @db.Timestamptz(6)
+  alimento         String          @db.VarChar(255)
+  quantidadeGramas Decimal         @map("quantidade_gramas") @db.Decimal(10, 2)
+  observacao       String?
+  petId            String          @map("pet_id") @db.Uuid
+  planoId          String?         @map("plano_id") @db.Uuid
+  criadoEm         DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet              Pet             @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_registro_alimentacao_pet_id")
+  plano            PlanoAlimentar? @relation(fields: [planoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_registro_alimentacao_plano_id")
+
+  @@map("registro_alimentacao")
+}
+
+model RegistroClinico {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataRegistro            DateTime                 @map("data_registro") @db.Timestamptz(6)
+  observacoes             String?
+  valido                  Boolean
+  petId                   String                   @map("pet_id") @db.Uuid
+  registradoPorId         String                   @map("registrado_por_id") @db.Uuid
+  criadoEm                DateTime                 @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm            DateTime                 @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  exame                   Exame?
+  pet                     Pet                      @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_registro_clinico_pet_id")
+  registradoPor           Usuario                  @relation(fields: [registradoPorId], references: [id], onUpdate: NoAction, map: "fk_registro_clinico_registrado_por_id")
+  tratamentoMedicamentoso TratamentoMedicamentoso?
+  vacinacao               Vacinacao?
+
+  @@index([petId, dataRegistro(sort: Desc)], map: "ix_registro_clinico_pet_data")
+  @@map("registro_clinico")
+}
+
+model Relatorio {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo          TipoRelatorio
+  periodoInicio DateTime         @map("periodo_inicio") @db.Date
+  periodoFim    DateTime         @map("periodo_fim") @db.Date
+  filtros       String?
+  formato       FormatoRelatorio
+  geradoEm      DateTime         @map("gerado_em") @db.Timestamptz(6)
+  geradoPorId   String           @map("gerado_por_id") @db.Uuid
+  criadoEm      DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  geradoPor     Usuario          @relation(fields: [geradoPorId], references: [id], onUpdate: NoAction, map: "fk_relatorio_gerado_por_id")
+
+  @@map("relatorio")
+}
+
+model ResponsavelPet {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo         TipoResponsavel
+  dataVinculo  DateTime        @map("data_vinculo") @db.Timestamptz(6)
+  ativo        Boolean
+  petId        String          @map("pet_id") @db.Uuid
+  tutorId      String          @map("tutor_id") @db.Uuid
+  criadoEm     DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet          Pet             @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_responsavel_pet_pet_id")
+  tutor        Tutor           @relation(fields: [tutorId], references: [id], onUpdate: NoAction, map: "fk_responsavel_pet_tutor_id")
+
+  @@unique([petId, tutorId], map: "uq_responsavel_pet")
+  @@map("responsavel_pet")
+}
+
+model Servico {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome               String               @db.VarChar(255)
+  descricao          String
+  categoria          CategoriaServico
+  preco              Decimal              @db.Decimal(12, 2)
+  duracaoMinutos     Int                  @map("duracao_minutos")
+  ativo              Boolean
+  empresaId          String               @map("empresa_id") @db.Uuid
+  criadoEm           DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento        Agendamento[]
+  itemAtendimento    ItemAtendimento[]
+  empresa            EmpresaEnterprise    @relation(fields: [empresaId], references: [id], onUpdate: NoAction, map: "fk_servico_empresa_id")
+  solicitacaoServico SolicitacaoServico[]
+
+  @@map("servico")
+}
+
+model Sessao {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token           String   @unique @db.VarChar(255)
+  inicio          DateTime @db.Timestamptz(6)
+  ultimaAtividade DateTime @map("ultima_atividade") @db.Timestamptz(6)
+  dispositivo     String?  @db.VarChar(255)
+  usuarioId       String   @map("usuario_id") @db.Uuid
+  criadoEm        DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_sessao_usuario_id")
+
+  @@map("sessao")
+}
+
+model SolicitacaoPrivacidade {
+  id              String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo            TipoSolicitacaoPrivacidade
+  dataSolicitacao DateTime                     @map("data_solicitacao") @db.Timestamptz(6)
+  status          StatusSolicitacaoPrivacidade
+  dataConclusao   DateTime?                    @map("data_conclusao") @db.Timestamptz(6)
+  usuarioId       String                       @map("usuario_id") @db.Uuid
+  criadoEm        DateTime                     @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime                     @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario         Usuario                      @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_solicitacao_privacidade_usuario_id")
+
+  @@map("solicitacao_privacidade")
+}
+
+model SolicitacaoReembolso {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  motivo          String
+  valor           Decimal         @db.Decimal(12, 2)
+  dataSolicitacao DateTime        @map("data_solicitacao") @db.Timestamptz(6)
+  status          StatusReembolso
+  dataAnalise     DateTime?       @map("data_analise") @db.Timestamptz(6)
+  pagamentoId     String          @map("pagamento_id") @db.Uuid
+  criadoEm        DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm    DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pagamento       Pagamento       @relation(fields: [pagamentoId], references: [id], onUpdate: NoAction, map: "fk_solicitacao_reembolso_pagamento_id")
+
+  @@map("solicitacao_reembolso")
+}
+
+model SolicitacaoServico {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dataSolicitacao      DateTime               @map("data_solicitacao") @db.Timestamptz(6)
+  dataHoraDesejada     DateTime               @map("data_hora_desejada") @db.Timestamptz(6)
+  status               StatusSolicitacao
+  motivoRecusa         String?                @map("motivo_recusa")
+  observacoes          String?
+  tutorId              String                 @map("tutor_id") @db.Uuid
+  petId                String                 @map("pet_id") @db.Uuid
+  servicoId            String                 @map("servico_id") @db.Uuid
+  criadoEm             DateTime               @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm         DateTime               @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento          Agendamento?
+  historicoSolicitacao HistoricoSolicitacao[]
+  pet                  Pet                    @relation(fields: [petId], references: [id], onUpdate: NoAction, map: "fk_solicitacao_servico_pet_id")
+  servico              Servico                @relation(fields: [servicoId], references: [id], onUpdate: NoAction, map: "fk_solicitacao_servico_servico_id")
+  tutor                Tutor                  @relation(fields: [tutorId], references: [id], onUpdate: NoAction, map: "fk_solicitacao_servico_tutor_id")
+
+  @@index([servicoId, status], map: "ix_solicitacao_servico_status")
+  @@map("solicitacao_servico")
+}
+
+model TermoUso {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo          TipoTermo
+  versao        String          @db.VarChar(255)
+  titulo        String          @db.VarChar(255)
+  conteudo      String
+  dataVigencia  DateTime        @map("data_vigencia") @db.Date
+  obrigatorio   Boolean
+  criadoEm      DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  consentimento Consentimento[]
+
+  @@unique([tipo, versao], map: "uq_termo_uso_versao")
+  @@map("termo_uso")
+}
+
+model TokenAcesso {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token        String    @unique @db.VarChar(255)
+  tipo         TipoToken
+  criadoEm     DateTime  @map("criado_em") @db.Timestamptz(6)
+  expiraEm     DateTime  @map("expira_em") @db.Timestamptz(6)
+  utilizado    Boolean
+  usuarioId    String    @map("usuario_id") @db.Uuid
+  atualizadoEm DateTime  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onUpdate: NoAction, map: "fk_token_acesso_usuario_id")
+
+  @@map("token_acesso")
+}
+
+model TratamentoMedicamentoso {
+  id               String           @id @db.Uuid
+  medicamento      String           @db.VarChar(255)
+  dosagem          String           @db.VarChar(255)
+  viaAdministracao String           @map("via_administracao") @db.VarChar(255)
+  intervaloHoras   Int              @map("intervalo_horas")
+  dataInicio       DateTime         @map("data_inicio") @db.Date
+  dataFim          DateTime?        @map("data_fim") @db.Date
+  status           StatusTratamento
+  criadoEm         DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm     DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  registroClinico  RegistroClinico  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tratamento_medicamentoso_heranca")
+
+  @@map("tratamento_medicamentoso")
+}
+
+model Tutor {
+  id                  String               @id @db.Uuid
+  nome                String               @db.VarChar(255)
+  cpfCifrado          Bytes                @map("cpf_cifrado")
+  cpfHash             String               @unique @map("cpf_hash") @db.Char(64)
+  dataNascimento      DateTime?            @map("data_nascimento") @db.Date
+  enderecoCep         String?              @map("endereco_cep") @db.VarChar(10)
+  enderecoLogradouro  String?              @map("endereco_logradouro") @db.VarChar(120)
+  enderecoNumero      String?              @map("endereco_numero") @db.VarChar(10)
+  enderecoComplemento String?              @map("endereco_complemento") @db.VarChar(120)
+  enderecoBairro      String?              @map("endereco_bairro") @db.VarChar(120)
+  enderecoCidade      String?              @map("endereco_cidade") @db.VarChar(120)
+  enderecoUf          String?              @map("endereco_uf") @db.Char(2)
+  criadoEm            DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm        DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  assinatura          Assinatura[]
+  cliente             Cliente[]
+  conversa            Conversa[]
+  pagamento           Pagamento[]
+  responsavelPet      ResponsavelPet[]
+  solicitacaoServico  SolicitacaoServico[]
+  usuario             Usuario              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tutor_heranca")
+
+  @@map("tutor")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Usuario {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                   String                    @unique @db.VarChar(255)
+  senhaHash               String?                   @map("senha_hash") @db.VarChar(255)
+  telefone                String?                   @db.VarChar(255)
+  status                  StatusConta
+  emailConfirmado         Boolean                   @map("email_confirmado")
+  tentativasLoginFalhas   Int                       @map("tentativas_login_falhas")
+  bloqueadoAte            DateTime?                 @map("bloqueado_ate") @db.Timestamptz(6)
+  dataCadastro            DateTime                  @map("data_cadastro") @db.Timestamptz(6)
+  perfilId                String                    @map("perfil_id") @db.Uuid
+  criadoEm                DateTime                  @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm            DateTime                  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  administrador           Administrador?
+  atendimento             Atendimento[]
+  calendarioExterno       CalendarioExterno[]
+  chamadoSuporte          ChamadoSuporte[]
+  configuracaoNotificacao ConfiguracaoNotificacao[]
+  consentimento           Consentimento[]
+  empresaEnterprise       EmpresaEnterprise?
+  eventoCalendario        EventoCalendario[]
+  funcionarioEnterprise   FuncionarioEnterprise?
+  historicoSenha          HistoricoSenha[]
+  historicoSolicitacao    HistoricoSolicitacao[]
+  identidadeExterna       IdentidadeExterna[]
+  logAuditoria            LogAuditoria[]
+  mensagem                Mensagem[]
+  notificacao             Notificacao[]
+  registroClinico         RegistroClinico[]
+  relatorio               Relatorio[]
+  sessao                  Sessao[]
+  solicitacaoPrivacidade  SolicitacaoPrivacidade[]
+  tokenAcesso             TokenAcesso[]
+  tutor                   Tutor?
+  perfil                  PerfilAcesso              @relation(fields: [perfilId], references: [id], onUpdate: NoAction, map: "fk_usuario_perfil_id")
+
+  @@map("usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Vacinacao {
+  id                   String          @id @db.Uuid
+  nomeVacina           String          @map("nome_vacina") @db.VarChar(255)
+  fabricante           String?         @db.VarChar(255)
+  lote                 String?         @db.VarChar(255)
+  dataAplicacao        DateTime        @map("data_aplicacao") @db.Date
+  dataProximaDose      DateTime?       @map("data_proxima_dose") @db.Date
+  responsavelAplicacao String          @map("responsavel_aplicacao") @db.VarChar(255)
+  criadoEm             DateTime        @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm         DateTime        @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  registroClinico      RegistroClinico @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vacinacao_heranca")
+
+  @@map("vacinacao")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model Webhook {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url                String        @db.VarChar(2048)
+  eventos            String[]      @db.VarChar(255)
+  segredoAssinatura  String        @map("segredo_assinatura") @db.VarChar(255)
+  metodoAutenticacao String        @map("metodo_autenticacao") @db.VarChar(255)
+  ativo              Boolean
+  configuradoPorId   String        @map("configurado_por_id") @db.Uuid
+  integracaoId       String?       @map("integracao_id") @db.Uuid
+  criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm       DateTime      @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  configuradoPor     Administrador @relation(fields: [configuradoPorId], references: [id], onUpdate: NoAction, map: "fk_webhook_configurado_por_id")
+  integracao         Integracao?   @relation(fields: [integracaoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_webhook_integracao_id")
+
+  @@map("webhook")
+}
+
+enum CanalNotificacao {
+  PUSH
+  EMAIL
+  SMS
+
+  @@map("canal_notificacao")
+}
+
+enum CategoriaServico {
+  CONSULTA
+  EXAME
+  CIRURGIA
+  VACINACAO
+  BANHO_TOSA
+  HOSPEDAGEM
+  PET_SITTER
+  CRECHE
+  OUTRO
+
+  @@map("categoria_servico")
+}
+
+enum DiaSemana {
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+  DOMINGO
+
+  @@map("dia_semana")
+}
+
+enum EscopoAcesso {
+  PERFIL_BASICO
+  VACINAS
+  EXAMES
+  MEDICAMENTOS
+  ALERGIAS
+  DOCUMENTOS
+  LINHA_DO_TEMPO
+  EDICAO_CLINICA
+
+  @@map("escopo_acesso")
+}
+
+enum EscopoPerfil {
+  GLOBAL
+  EMPRESA
+
+  @@map("escopo_perfil")
+}
+
+enum FormatoRelatorio {
+  TELA
+  PDF
+
+  @@map("formato_relatorio")
+}
+
+enum Gravidade {
+  LEVE
+  MODERADA
+  GRAVE
+
+  @@map("gravidade")
+}
+
+enum MeioColeta {
+  ACEITE_NO_APP
+  ASSINATURA_PRESENCIAL
+  LINK_DIGITAL
+
+  @@map("meio_coleta")
+}
+
+enum MetodoPagamento {
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  BOLETO
+
+  @@map("metodo_pagamento")
+}
+
+enum NivelLog {
+  INFO
+  ALERTA
+  CRITICO
+
+  @@map("nivel_log")
+}
+
+enum OrigemEvento {
+  MANUAL
+  AGENDAMENTO
+  CALENDARIO_EXTERNO
+
+  @@map("origem_evento")
+}
+
+enum ProvedorCalendario {
+  GOOGLE
+  OUTLOOK
+  APPLE
+
+  @@map("provedor_calendario")
+}
+
+enum ProvedorIdentidade {
+  GOOGLE
+  APPLE
+
+  @@map("provedor_identidade")
+}
+
+enum Sexo {
+  MACHO
+  FEMEA
+
+  @@map("sexo")
+}
+
+enum StatusAgendamento {
+  AGENDADO
+  CANCELADO
+  REALIZADO
+  NAO_COMPARECEU
+
+  @@map("status_agendamento")
+}
+
+enum StatusAssinatura {
+  ATIVA
+  CANCELADA
+  EXPIRADA
+
+  @@map("status_assinatura")
+}
+
+enum StatusAtendimento {
+  EM_ANDAMENTO
+  FINALIZADO
+
+  @@map("status_atendimento")
+}
+
+enum StatusChamado {
+  ABERTO
+  EM_ANALISE
+  AGUARDANDO_INFORMACAO
+  RESOLVIDO
+  FECHADO
+
+  @@map("status_chamado")
+}
+
+enum StatusCompartilhamento {
+  ATIVO
+  REVOGADO
+  EXPIRADO
+
+  @@map("status_compartilhamento")
+}
+
+enum StatusConta {
+  PENDENTE_CONFIRMACAO
+  ATIVA
+  BLOQUEADA
+  SUSPENSA
+  INATIVA
+
+  @@map("status_conta")
+}
+
+enum StatusConversa {
+  ABERTA
+  ENCERRADA
+
+  @@map("status_conversa")
+}
+
+enum StatusNotificacao {
+  AGENDADA
+  ENVIADA
+  FALHOU
+  CANCELADA
+
+  @@map("status_notificacao")
+}
+
+enum StatusPagamento {
+  PENDENTE
+  ACEITO
+  CANCELADO
+  RECUSADO
+
+  @@map("status_pagamento")
+}
+
+enum StatusPet {
+  ATIVO
+  ARQUIVADO
+  FALECIDO
+
+  @@map("status_pet")
+}
+
+enum StatusReembolso {
+  EM_ANALISE
+  APROVADO
+  NEGADO
+
+  @@map("status_reembolso")
+}
+
+enum StatusSolicitacao {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  CANCELADA
+  CONCLUIDA
+  ENCERRADA
+
+  @@map("status_solicitacao")
+}
+
+enum StatusSolicitacaoPrivacidade {
+  ABERTA
+  EM_PROCESSAMENTO
+  CONCLUIDA
+  NEGADA
+
+  @@map("status_solicitacao_privacidade")
+}
+
+enum StatusTratamento {
+  ATIVO
+  FINALIZADO
+  SUSPENSO
+
+  @@map("status_tratamento")
+}
+
+enum TipoAlergiaRestricao {
+  ALERGIA
+  RESTRICAO_ALIMENTAR
+  RESTRICAO_MEDICAMENTOSA
+  OUTRA
+
+  @@map("tipo_alergia_restricao")
+}
+
+enum TipoConversa {
+  EMPRESA
+  ASSISTENTE_VIRTUAL
+
+  @@map("tipo_conversa")
+}
+
+enum TipoDocumento {
+  RG_ANIMAL
+  CARTEIRA_VACINACAO
+  ATESTADO
+  RECEITA
+  LAUDO
+  PEDIGREE
+  OUTRO
+
+  @@map("tipo_documento")
+}
+
+enum TipoEmpresa {
+  CLINICA_VETERINARIA
+  PET_SHOP
+  HOTEL_PET
+  CRECHE
+  CASA_DE_CUIDADO
+
+  @@map("tipo_empresa")
+}
+
+enum TipoEvento {
+  CONSULTA
+  VACINA
+  MEDICAMENTO
+  EXAME
+  CIRURGIA
+  BANHO_TOSA
+  HOSPEDAGEM
+  COMPROMISSO
+  OUTRO
+
+  @@map("tipo_evento")
+}
+
+enum TipoIntegracao {
+  CALENDARIO
+  PAGAMENTO
+  PLATAFORMA_VETERINARIA
+  NOTIFICACAO
+  OUTRA
+
+  @@map("tipo_integracao")
+}
+
+enum TipoItemMemorial {
+  FOTO
+  TEXTO
+  HOMENAGEM
+
+  @@map("tipo_item_memorial")
+}
+
+enum TipoPlano {
+  GRATUITO
+  PANTERA
+
+  @@map("tipo_plano")
+}
+
+enum TipoRecurso {
+  SALA
+  EQUIPAMENTO
+  BAIA
+  VEICULO
+  OUTRO
+
+  @@map("tipo_recurso")
+}
+
+enum TipoRelatorio {
+  DESPESAS
+  OPERACIONAL
+  GERENCIAL
+
+  @@map("tipo_relatorio")
+}
+
+enum TipoResponsavel {
+  PRINCIPAL
+  ADICIONAL
+
+  @@map("tipo_responsavel")
+}
+
+enum TipoSolicitacaoPrivacidade {
+  EXPORTACAO_DADOS
+  EXCLUSAO_DADOS
+  CORRECAO_DADOS
+
+  @@map("tipo_solicitacao_privacidade")
+}
+
+enum TipoTermo {
+  TERMOS_USO_APP
+  TERMOS_ENTERPRISE
+  POLITICA_PRIVACIDADE
+  CONSENTIMENTO_CLIENTE
+  COMUNICACAO_MARKETING
+
+  @@map("tipo_termo")
+}
+
+enum TipoToken {
+  CONFIRMACAO_EMAIL
+  RECUPERACAO_SENHA
+
+  @@map("tipo_token")
+}
