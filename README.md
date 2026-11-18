@@ -33,7 +33,7 @@ cp .env.example .env        # variáveis do ambiente local
 docker compose up -d        # PostgreSQL, Redis, armazenamento S3 e caixa de e-mail
 npm install                 # também gera o Prisma Client
 npm run prisma:deploy       # cria as tabelas
-npm run start:dev           # API em http://localhost:3000
+npm run start:dev           # API em http://localhost:3000/v1
 npm run start:worker:dev    # worker (em outro terminal)
 ```
 
@@ -80,6 +80,18 @@ Todos os usuários entram com a senha `Jaguara@2026`.
 | Tutores | `ana.tutora@exemplo.com`, `bruno.tutor@exemplo.com`, `carla.tutora@exemplo.com` |
 | Empresas | `clinica.patas@exemplo.com`, `banho.cheiroso@exemplo.com` |
 | Funcionários | `dra.julia@exemplo.com`, `recepcao.patas@exemplo.com`, `tosador.leo@exemplo.com` |
+
+## Autenticação e camada de acesso
+
+Rotas sob o prefixo `/v1` (OpenAPI). Senha em hash Argon2id, access token JWT de 15 minutos e refresh token opaco ligado a uma `Sessao` (ADR-009). O banco guarda só o hash do refresh token, que é trocado a cada renovação.
+
+| Rota | Uso |
+|---|---|
+| `POST /v1/auth/login` | UC-02: e-mail e senha. Cinco falhas seguidas bloqueiam a conta por 5 minutos (RN03, resposta 423). Conta com e-mail não confirmado recebe 403 (RN02). |
+| `POST /v1/auth/renovacao` | Novo access token e novo refresh token. Encerra a sessão depois de 4 horas sem atividade (RN04) e relê as permissões do perfil. |
+| `POST /v1/auth/logout` | Apaga a sessão e coloca o `sid` na lista de sessões revogadas do Redis: o access token deixa de valer na requisição seguinte. |
+
+A camada de acesso é única para todas as rotas (ADR-012): o `AutenticacaoGuard` global valida o access token sem consultar o banco e recusa sessões revogadas; se o Redis cair, consulta a sessão no banco. Toda rota exige login, menos as marcadas com `@Publica()`. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA`).
 
 ## Filas e e-mail
 
