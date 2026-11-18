@@ -81,6 +81,14 @@ Todos os usuários entram com a senha `Jaguara@2026`.
 | Empresas | `clinica.patas@exemplo.com`, `banho.cheiroso@exemplo.com` |
 | Funcionários | `dra.julia@exemplo.com`, `recepcao.patas@exemplo.com`, `tosador.leo@exemplo.com` |
 
+## Filas e e-mail
+
+O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.
+
+- **E-mail transacional:** `FilaEmailService.enviar(tipo, para, dados)` enfileira; o `EmailProcessor` monta a mensagem (`modulos/notificacao/dominio/email.ts`) e envia pela porta `EnvioEmail` (ARQ-03). Falhas são tentadas de novo até 5 vezes, com espera exponencial a partir de 30 s.
+- **Provedor:** `EMAIL_PROVEDOR=smtp` envia por SMTP; no ambiente local o Mailpit recebe tudo e mostra em http://localhost:8025, sem mandar nada para fora. `EMAIL_PROVEDOR=api` usa a API HTTP do provedor de e-mail transacional (Brevo) com `EMAIL_API_KEY`, em homologação e produção.
+- **Mensagens:** confirmação de cadastro (UC-01, RN02) e recuperação de senha (UC-03, RN05).
+
 ## Testes
 
 Plano e convenções no TST-01: arquivos `*.spec.ts` ao lado do código, nomes no formato "deve ... quando ...".
