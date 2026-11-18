@@ -63,6 +63,24 @@ npm run prisma:studio     # abre o Prisma Studio
 
 Mudanças no modelo: altere o MOD-03 e o `schema.prisma` juntos e gere a migração com `npm run prisma:migrate -- --name <descricao>`. Restrições CHECK e EXCLUDE novas vão escritas à mão no `migration.sql`.
 
+## Dados de teste (seed)
+
+```bash
+npm run prisma:seed         # banco de desenvolvimento (DATABASE_URL)
+npm run prisma:seed:teste   # banco de testes (DATABASE_URL_TESTE), depois das migrações
+```
+
+O seed apaga os dados do banco e insere dados fictícios: permissões e perfis de acesso, um administrador, três tutores com quatro pets (o Thor tem dois responsáveis), duas empresas com perfis, funcionários, serviços, recursos e horários, um cliente com pet compartilhado e os termos vigentes. Nenhum dado é real: e-mails no domínio `exemplo.com` e CPFs e CNPJs gerados com dígitos válidos. Não roda com `NODE_ENV=production`.
+
+Todos os usuários entram com a senha `Jaguara@2026`.
+
+| Perfil | E-mail |
+|---|---|
+| Administrador | `admin@jaguara.exemplo.com` |
+| Tutores | `ana.tutora@exemplo.com`, `bruno.tutor@exemplo.com`, `carla.tutora@exemplo.com` |
+| Empresas | `clinica.patas@exemplo.com`, `banho.cheiroso@exemplo.com` |
+| Funcionários | `dra.julia@exemplo.com`, `recepcao.patas@exemplo.com`, `tosador.leo@exemplo.com` |
+
 ## Dependências
 
 - Gerenciador: **npm** (versão 11 ou maior), com o `package-lock.json` versionado. Instale com `npm ci` para reproduzir exatamente as versões do lock.
