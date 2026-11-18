@@ -36,6 +36,7 @@
     "test:unit": "jest"
   },
   "dependencies": {
+    "@nestjs/bullmq": "11.0.5",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -43,7 +44,10 @@
     "@node-rs/argon2": "2.2.2",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "bullmq": "6.7.7",
     "dotenv": "18.0.10",
+    "ioredis": "6.0.0",
+    "nodemailer": "10.6.0",
     "pg": "8.23.1",
     "prisma": "7.10.1",
     "reflect-metadata": "^0.2.2",
@@ -61,6 +65,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.18.0",
@@ -112,6 +117,7 @@
     "@prisma/engines@7.10.1": true,
     "@parcel/watcher": false,
     "ssh2": false,
-    "protobufjs": false
+    "protobufjs": false,
+    "msgpackr-extract": false
   }
 }

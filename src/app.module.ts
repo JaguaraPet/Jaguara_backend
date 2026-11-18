@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validarAmbiente } from './compartilhado/config/ambiente';
+import { FilasModule } from './compartilhado/filas/filas.module';
 import { PrismaModule } from './compartilhado/prisma/prisma.module';
 import { StatusModule } from './compartilhado/status/status.module';
 import { AcessoModule } from './modulos/acesso/acesso.module';
@@ -19,6 +20,7 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validarAmbiente }),
     PrismaModule,
+    FilasModule,
     StatusModule,
     AcessoModule,
     PetModule,
