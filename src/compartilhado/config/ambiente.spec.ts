@@ -15,20 +15,20 @@ const valido = {
 };
 
 describe('validarAmbiente', () => {
-  it('aceita a configuração mínima e aplica os padrões', () => {
+  it('deve aplicar os padrões quando recebe a configuração mínima', () => {
     const ambiente = validarAmbiente(valido);
     expect(ambiente.PORT).toBe(3000);
     expect(ambiente.JWT_EXPIRACAO_MINUTOS).toBe(15);
     expect(ambiente.SESSAO_INATIVIDADE_HORAS).toBe(4);
   });
 
-  it('recusa JWT_SECRET curto', () => {
+  it('deve recusar quando o JWT_SECRET é curto', () => {
     expect(() => validarAmbiente({ ...valido, JWT_SECRET: 'curto' })).toThrow(
       /JWT_SECRET/,
     );
   });
 
-  it('recusa chave de criptografia que não tem 32 bytes', () => {
+  it('deve recusar quando a chave de criptografia não tem 32 bytes', () => {
     expect(() =>
       validarAmbiente({
         ...valido,
