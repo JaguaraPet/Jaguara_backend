@@ -91,7 +91,22 @@ Rotas sob o prefixo `/v1` (OpenAPI). Senha em hash Argon2id, access token JWT de
 | `POST /v1/auth/renovacao` | Novo access token e novo refresh token. Encerra a sessão depois de 4 horas sem atividade (RN04) e relê as permissões do perfil. |
 | `POST /v1/auth/logout` | Apaga a sessão e coloca o `sid` na lista de sessões revogadas do Redis: o access token deixa de valer na requisição seguinte. |
 
-A camada de acesso é única para todas as rotas (ADR-012): o `AutenticacaoGuard` global valida o access token sem consultar o banco e recusa sessões revogadas; se o Redis cair, consulta a sessão no banco. Toda rota exige login, menos as marcadas com `@Publica()`. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA`).
+A camada de acesso é única para todas as rotas (ADR-012) e roda nesta ordem:
+
+1. Cabeçalhos de segurança (Helmet), CORS liberado só para a web Enterprise, identificador da requisição (`X-Request-Id`) e limite de requisições por IP.
+2. `AutenticacaoGuard`: valida o access token sem consultar o banco e recusa sessões revogadas; se o Redis cair, consulta a sessão no banco.
+3. `PermissoesGuard`: confere o tipo de conta e as permissões do token. Nega por padrão.
+
+Cada rota declara o acesso com um destes decoradores, e um teste automatizado falha se alguma rota ficar sem:
+
+| Decorador | Uso |
+|---|---|
+| `@Publica()` | Rota sem login (login, cadastro, health check) |
+| `@Autenticado()` | Qualquer usuário logado (logout, dados da própria conta) |
+| `@Permissoes('agenda:editar', ...)` | Exige as permissões do perfil (RBAC, catálogo em `modulos/acesso/dominio/catalogo-permissoes.ts`) |
+| `@SomenteTutor()`, `@SomenteEnterprise()`, `@SomenteAdministrador()` | Separa os contextos Tutor, Enterprise e administração (ADR-002) |
+
+Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e funcionários só vejam dados da própria empresa. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA` ou `SEM_PERMISSAO`).
 
 ## Filas e e-mail
 

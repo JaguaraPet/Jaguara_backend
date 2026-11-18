@@ -3,6 +3,7 @@ import {
   UnprocessableEntityException,
   ValidationPipe,
 } from '@nestjs/common';
+import helmet from 'helmet';
 import { ProblemaFilter } from './compartilhado/erros/problema.filter';
 
 /**
@@ -10,6 +11,13 @@ import { ProblemaFilter } from './compartilhado/erros/problema.filter';
  * validação dos DTOs e erros no formato application/problem+json.
  */
 export function configurarApp(app: INestApplication): INestApplication {
+  // Cabeçalhos de segurança e CORS só para a web Enterprise (ADR-012, passo 1).
+  app.use(helmet());
+  app.enableCors({
+    origin: (process.env.URL_WEB ?? '').split(',').filter(Boolean),
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
+    exposedHeaders: ['X-Request-Id'],
+  });
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(
     new ValidationPipe({
