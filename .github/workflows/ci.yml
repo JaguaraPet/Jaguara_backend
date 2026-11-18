@@ -19,6 +19,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Variáveis do ambiente local
+        run: cp .env.example .env
       - name: Lint
         run: npm run lint
       - name: Verificação de tipos
