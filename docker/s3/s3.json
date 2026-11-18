@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "jaguara-local",
+      "credentials": [
+        {
+          "accessKey": "jaguara",
+          "secretKey": "jaguara-local"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

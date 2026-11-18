@@ -1,5 +1,8 @@
 name: jaguara
 
+# Ambiente local: `docker compose up -d` sobe PostgreSQL, Redis, armazenamento S3 e caixa de e-mail.
+# Com `--profile completo`, sobe também a API e o worker em contêineres.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -20,5 +23,91 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-dados:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Armazenamento de arquivos compatível com S3 (ADR-005). No ambiente local usa o SeaweedFS.
+  s3:
+    image: chrislusf/seaweedfs:4.54
+    restart: unless-stopped
+    command: >
+      server -dir=/data -ip.bind=0.0.0.0
+      -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    ports:
+      - '8333:8333'
+    volumes:
+      - s3-dados:/data
+      - ./docker/s3/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:9333/cluster/status || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Cria o bucket de arquivos na primeira subida.
+  s3-bucket:
+    image: chrislusf/seaweedfs:4.54
+    depends_on:
+      s3:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - echo "s3.bucket.create -name jaguara-arquivos" | weed shell -master=s3:9333
+    restart: 'no'
+
+  # Caixa de e-mail de teste: todo e-mail enviado pela API aparece em http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  api:
+    profiles: [completo]
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://jaguara:jaguara@postgres:5432/jaguara
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://s3:8333
+      SMTP_HOST: mailpit
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    profiles: [completo]
+    build: .
+    command: ['node', 'dist/worker']
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://jaguara:jaguara@postgres:5432/jaguara
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://s3:8333
+      SMTP_HOST: mailpit
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres-dados:
+  redis-dados:
+  s3-dados:

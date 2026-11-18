@@ -24,22 +24,31 @@ test/               testes de API (Jest + Supertest)
 
 Camadas e regras de dependência no ARQ-01, seção 5.2.
 
-## Banco de dados
+## Ambiente local
 
-O PostgreSQL 16 roda em Docker (ADR-005):
+Pré-requisitos: Node.js 24 (`nvm use`) e Docker.
 
 ```bash
-docker compose up -d postgres
+cp .env.example .env        # variáveis do ambiente local
+docker compose up -d        # PostgreSQL, Redis, armazenamento S3 e caixa de e-mail
+npm install                 # também gera o Prisma Client
+npm run prisma:deploy       # cria as tabelas
+npm run start:dev           # API em http://localhost:3000
+npm run start:worker:dev    # worker (em outro terminal)
 ```
 
-| Banco | Uso | Conexão |
+| Serviço | Endereço | Uso |
 |---|---|---|
-| `jaguara` | Desenvolvimento | `postgresql://jaguara:jaguara@localhost:5432/jaguara` |
-| `jaguara_teste` | Testes automatizados | `postgresql://jaguara:jaguara@localhost:5432/jaguara_teste` |
+| PostgreSQL 16 | `localhost:5432`, bancos `jaguara` e `jaguara_teste` | Dados (ADR-005) |
+| Redis 7 | `localhost:6379` | Filas BullMQ e revogação de sessões (ADR-011, ADR-012) |
+| Armazenamento S3 (SeaweedFS) | `http://localhost:8333`, bucket `jaguara-arquivos` | Fotos e documentos |
+| Mailpit | SMTP `localhost:1025`, caixa em http://localhost:8025 | Todo e-mail enviado localmente aparece aqui |
 
-Na primeira subida, o script `docker/postgres/init/01-bancos.sql` cria o banco de testes e as extensões `pgcrypto` (identificadores `uuid`) e `btree_gist` (restrições contra agendamentos sobrepostos). Para recriar tudo do zero: `docker compose down -v` e suba de novo.
+Na primeira subida, `docker/postgres/init/01-bancos.sql` cria o banco de testes e as extensões `pgcrypto` e `btree_gist`, e o serviço `s3-bucket` cria o bucket. Para recriar tudo do zero: `docker compose down -v`.
 
-As credenciais acima são só do ambiente local.
+Para rodar a API e o worker também em contêineres: `docker compose --profile completo up -d --build`.
+
+As variáveis estão descritas no `.env.example` e são validadas na inicialização (`src/compartilhado/config/ambiente.ts`): a API não sobe com variável faltando ou inválida. As credenciais do `.env.example` servem só para o ambiente local.
 
 ## Modelo de dados (Prisma)
 
