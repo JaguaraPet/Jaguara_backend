@@ -24,6 +24,23 @@ test/               testes de API (Jest + Supertest)
 
 Camadas e regras de dependência no ARQ-01, seção 5.2.
 
+## Banco de dados
+
+O PostgreSQL 16 roda em Docker (ADR-005):
+
+```bash
+docker compose up -d postgres
+```
+
+| Banco | Uso | Conexão |
+|---|---|---|
+| `jaguara` | Desenvolvimento | `postgresql://jaguara:jaguara@localhost:5432/jaguara` |
+| `jaguara_teste` | Testes automatizados | `postgresql://jaguara:jaguara@localhost:5432/jaguara_teste` |
+
+Na primeira subida, o script `docker/postgres/init/01-bancos.sql` cria o banco de testes e as extensões `pgcrypto` (identificadores `uuid`) e `btree_gist` (restrições contra agendamentos sobrepostos). Para recriar tudo do zero: `docker compose down -v` e suba de novo.
+
+As credenciais acima são só do ambiente local.
+
 ## Dependências
 
 - Gerenciador: **npm** (versão 11 ou maior), com o `package-lock.json` versionado. Instale com `npm ci` para reproduzir exatamente as versões do lock.
