@@ -14,3 +14,6 @@
 # logs e sistema
 *.log
 .DS_Store
+
+# Prisma Client gerado (npm run prisma:generate)
+/src/generated
