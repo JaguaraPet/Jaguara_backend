@@ -131,6 +131,14 @@ npm run test:e2e     # integração e API (Jest + Supertest)
 - **Integração e API** (`test/**/*.e2e-spec.ts`): o `test/setup/global-setup.ts` sobe um PostgreSQL 16 e um Redis 7 descartáveis com Testcontainers, aplica as migrações e aponta `DATABASE_URL` e `REDIS_URL` para eles. Cada execução começa com um banco novo; `limparBanco` (`test/utils/banco.ts`) esvazia as tabelas entre arquivos. Precisa do Docker ligado.
 - **Cobertura:** meta de 70% de linhas no domínio, na aplicação e no código compartilhado (RNF09). Abaixo disso o `test:cov` falha e o pull request não entra. O CI publica o resumo na página da execução e o relatório completo como artefato `cobertura`.
 
+## Documentação da API e contrato
+
+O contrato oficial da API é o `openapi.yaml` do Jaguara_doc. Uma cópia fica em `contrato/openapi.yaml`:
+
+- `npm run contrato:atualizar` baixa a versão da `main` do Jaguara_doc.
+- O teste `test/contrato.e2e-spec.ts` falha se a API tiver alguma rota que não está no contrato (JAG-95). O CI também avisa quando a cópia está desatualizada.
+- Fora de produção, o Swagger UI gerado pelos controladores fica em http://localhost:3000/v1/docs.
+
 ## Dependências
 
 - Gerenciador: **npm** (versão 11 ou maior), com o `package-lock.json` versionado. Instale com `npm ci` para reproduzir exatamente as versões do lock.

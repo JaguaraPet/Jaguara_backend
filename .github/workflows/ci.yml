@@ -21,6 +21,10 @@ jobs:
       - run: npm ci
       - name: Variáveis do ambiente local
         run: cp .env.example .env
+      - name: Cópia do contrato igual à do Jaguara_doc
+        # Só avisa: o contrato muda primeiro na documentação e depois é copiado para cá.
+        continue-on-error: true
+        run: npm run contrato:atualizar && git diff --exit-code -- contrato/openapi.yaml
       - name: Lint
         run: npm run lint
       - name: Verificação de tipos

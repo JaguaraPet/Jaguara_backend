@@ -33,7 +33,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
     "prisma:seed:teste": "ts-node --transpile-only prisma/seed.ts --teste",
-    "test:unit": "jest"
+    "test:unit": "jest",
+    "contrato:atualizar": "node -e \"fetch('https://raw.githubusercontent.com/JaguaraPet/Jaguara_doc/main/docs/03-arquitetura/api/openapi.yaml').then(r=>r.text()).then(t=>require('fs').writeFileSync('contrato/openapi.yaml',t))\""
   },
   "dependencies": {
     "@nestjs/bullmq": "11.0.5",
@@ -42,6 +43,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "11.0.2",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "11.4.8",
     "@nestjs/throttler": "6.8.0",
     "@node-rs/argon2": "2.2.2",
     "@prisma/adapter-pg": "7.10.1",
@@ -57,6 +59,7 @@
     "prisma": "7.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "yaml": "2.9.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -123,6 +126,7 @@
     "@parcel/watcher": false,
     "ssh2": false,
     "protobufjs": false,
-    "msgpackr-extract": false
+    "msgpackr-extract": false,
+    "@scarf/scarf": false
   }
 }
