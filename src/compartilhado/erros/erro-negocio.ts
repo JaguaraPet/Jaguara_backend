@@ -10,6 +10,7 @@ export class ErroNegocio extends Error {
     readonly codigo: string,
     readonly titulo: string,
     readonly detalhe?: string,
+    readonly campos?: { campo: string; mensagem: string }[],
   ) {
     super(detalhe ?? titulo);
   }
@@ -54,6 +55,25 @@ export const Erros = {
       'SEM_PERMISSAO',
       'Acesso negado',
       detalhe,
+    ),
+  dadosInvalidos: (campo: string, mensagem: string) =>
+    new ErroNegocio(
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      'DADOS_INVALIDOS',
+      'Dados inválidos',
+      mensagem,
+      [{ campo, mensagem }],
+    ),
+  conflito: (codigo: string, titulo: string) =>
+    new ErroNegocio(HttpStatus.CONFLICT, codigo, titulo),
+  naoEncontrado: (titulo: string) =>
+    new ErroNegocio(HttpStatus.NOT_FOUND, 'NAO_ENCONTRADO', titulo),
+  linkExpirado: () =>
+    new ErroNegocio(
+      HttpStatus.GONE,
+      'LINK_EXPIRADO',
+      'Link inválido ou expirado',
+      'Peça um novo link.',
     ),
   sessaoExpirada: () =>
     new ErroNegocio(

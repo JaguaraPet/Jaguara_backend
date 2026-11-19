@@ -40,6 +40,7 @@ export class ProblemaFilter implements ExceptionFilter {
         status: erro.status,
         detail: erro.detalhe,
         codigo: erro.codigo,
+        campos: erro.campos,
       };
     }
     if (erro instanceof HttpException) {
