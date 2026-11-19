@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import helmet from 'helmet';
 import { ProblemaFilter } from './compartilhado/erros/problema.filter';
+import { publicarSwagger } from './compartilhado/http/swagger';
 
 /**
  * Configuração HTTP comum à API e aos testes: prefixo da versão (OpenAPI: /v1),
@@ -12,7 +13,13 @@ import { ProblemaFilter } from './compartilhado/erros/problema.filter';
  */
 export function configurarApp(app: INestApplication): INestApplication {
   // Cabeçalhos de segurança e CORS só para a web Enterprise (ADR-012, passo 1).
-  app.use(helmet());
+  // Fora de produção o CSP fica desligado para o Swagger UI carregar.
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        process.env.NODE_ENV === 'production' ? undefined : false,
+    }),
+  );
   app.enableCors({
     origin: (process.env.URL_WEB ?? '').split(',').filter(Boolean),
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
@@ -37,5 +44,6 @@ export function configurarApp(app: INestApplication): INestApplication {
     }),
   );
   app.useGlobalFilters(new ProblemaFilter());
+  publicarSwagger(app);
   return app;
 }
