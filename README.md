@@ -2,6 +2,9 @@
 
 API REST e WebSocket e worker de filas do Jaguara, em NestJS (ADR-004), organizados como monólito modular.
 
+
+Novo no projeto? O [guia do ambiente de desenvolvimento (ENT-05)](https://github.com/JaguaraPet/Jaguara_doc/blob/main/docs/07-entrega/ENT-05-guia-do-ambiente.md) mostra como subir API, web e app juntos, do zero.
+
 ## Rodar
 
 ```bash
@@ -138,6 +141,15 @@ O contrato oficial da API é o `openapi.yaml` do Jaguara_doc. Uma cópia fica em
 - `npm run contrato:atualizar` baixa a versão da `main` do Jaguara_doc.
 - O teste `test/contrato.e2e-spec.ts` falha se a API tiver alguma rota que não está no contrato (JAG-95). O CI também avisa quando a cópia está desatualizada.
 - Fora de produção, o Swagger UI gerado pelos controladores fica em http://localhost:3000/v1/docs.
+
+## Problemas comuns
+
+| Sintoma | Solução |
+|---|---|
+| "Variáveis de ambiente inválidas" ao subir a API | `cp .env.example .env` e confira os valores |
+| Porta 5432, 6379, 8333, 1025 ou 3000 em uso | Pare o serviço que usa a porta ou mude-a no `docker-compose.yml` e no `.env` |
+| `npm run test:e2e` não inicia | Ligue o Docker: os testes sobem PostgreSQL e Redis descartáveis |
+| Aviso de "install scripts" no `npm install` | Os scripts aprovados estão em `allowScripts` no `package.json`; aprove um novo só se for necessário |
 
 ## Dependências
 
