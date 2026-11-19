@@ -4,6 +4,7 @@ import {
   UsuarioAtual,
 } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
+import { Autenticado } from '../../../compartilhado/auth/permissoes';
 import { AutenticacaoService, Tokens } from '../aplicacao/autenticacao.service';
 import { LoginDto, RenovacaoDto } from './autenticacao.dto';
 
@@ -31,6 +32,7 @@ export class AutenticacaoController {
   }
 
   /** Encerra a sessão atual. */
+  @Autenticado()
   @Post('logout')
   @HttpCode(204)
   async logout(@UsuarioAtual() usuario: UsuarioAutenticado): Promise<void> {

@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validarAmbiente } from './compartilhado/config/ambiente';
 import { AuthModule } from './compartilhado/auth/auth.module';
 import { FilasModule } from './compartilhado/filas/filas.module';
+import { IdRequisicaoMiddleware } from './compartilhado/http/id-requisicao.middleware';
 import { RedisModule } from './compartilhado/redis/redis.module';
 import { PrismaModule } from './compartilhado/prisma/prisma.module';
 import { StatusModule } from './compartilhado/status/status.module';
@@ -39,4 +40,8 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
     RelatoriosModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(IdRequisicaoMiddleware).forRoutes('{*caminho}');
+  }
+}

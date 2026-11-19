@@ -48,6 +48,13 @@ export const Erros = {
       'Autenticação necessária',
       detalhe,
     ),
+  semPermissao: (detalhe?: string) =>
+    new ErroNegocio(
+      HttpStatus.FORBIDDEN,
+      'SEM_PERMISSAO',
+      'Acesso negado',
+      detalhe,
+    ),
   sessaoExpirada: () =>
     new ErroNegocio(
       HttpStatus.UNAUTHORIZED,
