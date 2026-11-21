@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
 import {
   diaDaSemana,
@@ -33,6 +34,7 @@ export class SolicitacoesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly politicaPet: PoliticaAcessoPet,
+    private readonly webhooks: PublicadorWebhook,
   ) {}
 
   async horariosDisponiveis(
@@ -123,6 +125,13 @@ export class SolicitacoesService {
           },
         },
       },
+    });
+    await this.webhooks.publicar('solicitacao.criada', {
+      solicitacaoId: criada.id,
+      servicoId: servico.id,
+      empresaId: servico.empresaId,
+      dataHoraDesejada: inicio.toISOString(),
+      status: 'PENDENTE',
     });
     return this.resposta(criada);
   }

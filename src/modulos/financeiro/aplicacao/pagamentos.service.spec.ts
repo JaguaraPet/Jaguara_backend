@@ -1,3 +1,4 @@
+import type { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import type { PrismaService } from '../../../compartilhado/prisma/prisma.service';
@@ -90,6 +91,7 @@ describe('PagamentosService (UC-44, RN39)', () => {
       canal,
       gateway,
       assinaturas as unknown as AssinaturasService,
+      { publicar: jest.fn() } as unknown as PublicadorWebhook,
     );
     return { prisma, gateway, politica, fila, emitir, servico, assinaturas };
   };

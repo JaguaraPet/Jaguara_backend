@@ -3,6 +3,7 @@ import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
 import { inicioDoDiaBrasilia } from '../dominio/disponibilidade';
@@ -40,6 +41,7 @@ export class AgendamentosService {
     private readonly politicaPet: PoliticaAcessoPet,
     private readonly solicitacoes: SolicitacoesService,
     private readonly fila: FilaEmailService,
+    private readonly webhooks: PublicadorWebhook,
   ) {}
 
   /** CT-39-01: cria o agendamento com o preço congelado (RN27) e avisa o tutor. */
@@ -95,6 +97,13 @@ export class AgendamentosService {
       }),
     );
     await this.avisarTutor(dados.petId, servico.nome, inicio);
+    await this.webhooks.publicar('agendamento.criado', {
+      agendamentoId: criado.id,
+      servicoId: servico.id,
+      empresaId: servico.empresaId,
+      dataHoraInicio: criado.dataHoraInicio.toISOString(),
+      dataHoraFim: criado.dataHoraFim.toISOString(),
+    });
     return this.resposta(criado);
   }
 
@@ -177,6 +186,11 @@ export class AgendamentosService {
     await this.prisma.agendamento.update({
       where: { id: agendamentoId },
       data: { status: 'CANCELADO' },
+    });
+    await this.webhooks.publicar('agendamento.cancelado', {
+      agendamentoId,
+      empresaId: atual.servico.empresaId,
+      canceladoPor: usuario.tipo === 'TUTOR' ? 'TUTOR' : 'EMPRESA',
     });
   }
 

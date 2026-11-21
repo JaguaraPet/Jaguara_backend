@@ -8,6 +8,7 @@ import { IdRequisicaoMiddleware } from './compartilhado/http/id-requisicao.middl
 import { RedisModule } from './compartilhado/redis/redis.module';
 import { PrismaModule } from './compartilhado/prisma/prisma.module';
 import { StatusModule } from './compartilhado/status/status.module';
+import { WebhooksModule } from './compartilhado/webhooks/webhooks.module';
 import { AcessoModule } from './modulos/acesso/acesso.module';
 import { PetModule } from './modulos/pet/pet.module';
 import { SaudeModule } from './modulos/saude/saude.module';
@@ -26,6 +27,7 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
     PrismaModule,
     RedisModule,
     FilasModule,
+    WebhooksModule,
     AuthModule,
     AuditoriaModule,
     StatusModule,
