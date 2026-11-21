@@ -146,6 +146,16 @@ A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, p
 | `GET` e `POST /v1/empresas/{empresaId}/horarios-atuacao`, `DELETE /v1/horarios-atuacao/{horarioId}` | Horários de atuação de cada profissional ou recurso (UC-24): um dos dois por horário (RC-20) e sem sobreposição no mesmo dia (RN29). |
 | `GET` e `POST /v1/empresas/{empresaId}/recursos`, `PATCH /v1/recursos/{recursoId}` | Salas, equipamentos, baias e veículos da empresa (`recurso:editar`). Rotas acrescentadas ao contrato na versão 1.4.0. |
 
+## Solicitações de agendamento (UC-40, UC-41, UC-42)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/servicos/{servicoId}/horarios-disponiveis?data=AAAA-MM-DD` | Horários livres no dia, de 30 em 30 minutos: o serviço inteiro precisa caber no turno de algum profissional ou recurso que não tenha agendamento no intervalo (RN40, RN29). Horários no fuso de Brasília. |
+| `POST /v1/solicitacoes` | O tutor solicita para um dos seus pets. A API confere de novo a disponibilidade e o conflito com outro agendamento do pet (RN14, CT-40-02) e grava a solicitação pendente com a primeira entrada do histórico (RN38). |
+| `GET /v1/solicitacoes` | As do tutor logado ou as da empresa, com filtro por situação. |
+
+A regra de disponibilidade fica em `modulos/atendimento/dominio/disponibilidade.ts`, sem dependência de banco.
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |
