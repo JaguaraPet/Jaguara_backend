@@ -156,6 +156,17 @@ A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, p
 
 A regra de disponibilidade fica em `modulos/atendimento/dominio/disponibilidade.ts`, sem dependência de banco.
 
+## Agendamentos e agenda (UC-39, UC-24)
+
+| Rota | Uso |
+|---|---|
+| `POST /v1/agendamentos` | A empresa agenda direto para pet de cliente ou compartilhado com ela, com o preço do serviço congelado (RN27) e e-mail para o tutor. Pet, profissional e recurso não podem ter outro agendamento no intervalo (RN14, RN29). |
+| `PATCH /v1/agendamentos/{agendamentoId}` | Remarca agendamento ativo, com a mesma checagem de conflito. |
+| `POST /v1/agendamentos/{agendamentoId}/cancelamento` | Cancela, pela empresa ou por um responsável pelo pet. |
+| `GET /v1/empresas/{empresaId}/agenda?semana=AAAA-MM-DD` | Agenda de 7 dias a partir da data, com filtro por profissional ou recurso, e as solicitações pendentes do período. |
+
+Além da checagem na API, a restrição `EXCLUDE` do banco (MOD-03) impede dois agendamentos ativos simultâneos para o mesmo pet, profissional ou recurso.
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |

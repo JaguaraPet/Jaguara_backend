@@ -48,7 +48,7 @@ describe('UC-01 e UC-32 · Cadastro com confirmação de e-mail (API)', () => {
     jest
       .spyOn(app.get(FilaEmailService), 'enviar')
       .mockImplementation((_tipo, _para, dados) => {
-        links.push(dados.link);
+        links.push((dados as { link: string }).link);
         return Promise.resolve();
       });
     for (const tipo of [
