@@ -7,7 +7,8 @@ export type TipoEmail =
   | 'COMPROVANTE_CONSENTIMENTO'
   | 'AGENDAMENTO_CRIADO'
   | 'PAGAMENTO_CONFIRMADO'
-  | 'COMPARTILHAMENTO_PET';
+  | 'COMPARTILHAMENTO_PET'
+  | 'NOTIFICACAO';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -50,6 +51,7 @@ export interface DadosEmail {
     link: string;
     validade: string | null;
   };
+  NOTIFICACAO: { titulo: string; mensagem: string };
 }
 
 export interface PedidoEmail<T extends TipoEmail = TipoEmail> {
@@ -290,6 +292,22 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           { texto: 'Ver o perfil', link: d.link },
           `${prazo} Se você não esperava este e-mail, ignore.`,
+        ),
+      };
+    }
+    case 'NOTIFICACAO': {
+      const d = pedido.dados as DadosEmail['NOTIFICACAO'];
+      const rodape =
+        'Você recebe este lembrete por e-mail porque escolheu este canal no app do Jaguara.';
+      return {
+        para: pedido.para,
+        assunto: d.titulo,
+        texto: [d.mensagem, rodape].join('\n\n'),
+        html: layout(
+          escaparHtml(d.titulo),
+          [escaparHtml(d.mensagem)],
+          null,
+          rodape,
         ),
       };
     }

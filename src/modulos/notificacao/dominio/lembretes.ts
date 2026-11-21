@@ -20,21 +20,6 @@ export function somarDias(data: string, dias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/**
- * Lembrete da próxima dose de vacina (CT-13-01): às 9h, com a antecedência em dias (padrão:
- * um dia antes). Não há lembrete se o horário já passou.
- */
-export function lembreteProximaDose(
-  dataProximaDose: string,
-  agora: Date,
-  antecedenciaDias = 1,
-): Date | null {
-  const quando = instanteBrasilia(
-    somarDias(dataProximaDose, -antecedenciaDias),
-  );
-  return quando > agora ? quando : null;
-}
-
 /** Limite de lembretes por tratamento, para tratamentos longos ou sem data de fim. */
 export const MAXIMO_DOSES = 120;
 /** Sem data de fim, os lembretes cobrem os próximos 30 dias. */

@@ -3,7 +3,6 @@ import {
   hojeBrasilia,
   horariosDasDoses,
   instanteBrasilia,
-  lembreteProximaDose,
   MAXIMO_DOSES,
   somarDias,
 } from './lembretes';
@@ -19,16 +18,6 @@ describe('lembretes (RN18, RN37)', () => {
     expect(somarDias('2026-11-30', 1)).toBe('2026-12-01');
     expect(somarDias('2026-03-01', -1)).toBe('2026-02-28');
     expect(dataBrasileira('2026-12-05')).toBe('05/12/2026');
-  });
-
-  it('CT-13-01: deve lembrar a próxima dose às 9h do dia anterior', () => {
-    expect(lembreteProximaDose('2027-01-10', agora)?.toISOString()).toBe(
-      '2027-01-09T12:00:00.000Z',
-    );
-    expect(lembreteProximaDose('2026-11-21', agora)).toBeNull();
-    expect(lembreteProximaDose('2026-11-25', agora, 3)?.toISOString()).toBe(
-      '2026-11-22T12:00:00.000Z',
-    );
   });
 
   it('CT-14-01: deve agendar as doses de 8 em 8 horas até o fim do último dia', () => {

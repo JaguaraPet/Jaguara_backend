@@ -14,9 +14,6 @@ export type TipoEvento =
 /** Evento sem fim ocupa uma hora na agenda do pet. */
 export const DURACAO_PADRAO_MS = 60 * 60_000;
 
-/** Antecedência padrão do lembrete de compromisso, em minutos (RN37). */
-export const ANTECEDENCIA_PADRAO_MIN = 60;
-
 export function fimDoEvento(inicio: Date, fim?: Date | null): Date {
   return fim ?? new Date(inicio.getTime() + DURACAO_PADRAO_MS);
 }
@@ -41,14 +38,4 @@ export function tipoDaCategoria(categoria: string): TipoEvento {
     CRECHE: 'HOSPEDAGEM',
   };
   return mapa[categoria] ?? 'COMPROMISSO';
-}
-
-/** Lembrete antes do início; nenhum se o horário já passou (CT-10-01). */
-export function horarioDoLembrete(
-  inicio: Date,
-  agora: Date,
-  antecedenciaMin = ANTECEDENCIA_PADRAO_MIN,
-): Date | null {
-  const quando = new Date(inicio.getTime() - antecedenciaMin * 60_000);
-  return quando > agora ? quando : null;
 }

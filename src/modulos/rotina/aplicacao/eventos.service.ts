@@ -4,12 +4,7 @@ import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { AgendaNotificacoesService } from '../../notificacao/aplicacao/agenda-notificacoes.service';
 import { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
-import {
-  cruzam,
-  fimDoEvento,
-  horarioDoLembrete,
-  tipoDaCategoria,
-} from '../dominio/evento';
+import { cruzam, fimDoEvento, tipoDaCategoria } from '../dominio/evento';
 import type { TipoEvento } from '../dominio/evento';
 
 export interface Evento {
@@ -126,25 +121,24 @@ export class EventosService {
       include: { pet: { select: { nome: true } } },
     });
 
-    const quando = horarioDoLembrete(inicio, new Date());
-    if (quando) {
-      const destinatarios = await this.agenda.responsaveisDoPet(petId);
-      const hora = inicio.toLocaleTimeString('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      await this.agenda.agendar(
-        destinatarios.map((destinatarioId) => ({
-          destinatarioId,
-          titulo: `${criado.titulo} às ${hora}`,
-          mensagem: `Compromisso de ${criado.pet.nome}${criado.local ? ` em ${criado.local}` : ''}.`,
-          dataProgramada: quando,
-          origemTipo: 'EVENTO',
-          origemId: criado.id,
-        })),
-      );
-    }
+    // Lembrete com a antecedência do usuário; o padrão é uma hora antes (RN37).
+    const destinatarios = await this.agenda.responsaveisDoPet(petId);
+    const hora = inicio.toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    await this.agenda.agendar(
+      destinatarios.map((destinatarioId) => ({
+        destinatarioId,
+        titulo: `${criado.titulo} às ${hora}`,
+        mensagem: `Compromisso de ${criado.pet.nome}${criado.local ? ` em ${criado.local}` : ''}.`,
+        dataReferencia: inicio,
+        tipoEvento: criado.tipo,
+        origemTipo: 'EVENTO',
+        origemId: criado.id,
+      })),
+    );
     return this.resposta(criado);
   }
 
