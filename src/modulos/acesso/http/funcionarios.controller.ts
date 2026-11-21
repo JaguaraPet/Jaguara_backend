@@ -23,6 +23,7 @@ import {
   Permissoes,
   SomenteEnterprise,
 } from '../../../compartilhado/auth/permissoes';
+import { Auditar } from '../../../compartilhado/auditoria/auditoria.interceptor';
 import { UsuarioAtual } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import {
@@ -75,6 +76,11 @@ export class FuncionariosController {
 
   /** UC-19: cadastra e convida por e-mail. */
   @Permissoes('funcionario:editar')
+  @Auditar({
+    acao: 'FUNCIONARIO_CADASTRADO',
+    entidade: 'FuncionarioEnterprise',
+    nivel: 'INFO',
+  })
   @Post('empresas/:empresaId/funcionarios')
   cadastrar(
     @UsuarioAtual() usuario: UsuarioAutenticado,
@@ -86,6 +92,12 @@ export class FuncionariosController {
 
   /** UC-16: troca o perfil de acesso do funcionário. */
   @Permissoes('funcionario:editar')
+  @Auditar({
+    acao: 'PERFIL_FUNCIONARIO_ALTERADO',
+    entidade: 'FuncionarioEnterprise',
+    nivel: 'ALERTA',
+    parametro: 'funcionarioId',
+  })
   @Patch('funcionarios/:funcionarioId')
   alterarPerfil(
     @UsuarioAtual() usuario: UsuarioAutenticado,
@@ -101,6 +113,12 @@ export class FuncionariosController {
 
   /** UC-19, RN23: desliga e revoga todos os acessos. */
   @Permissoes('funcionario:editar')
+  @Auditar({
+    acao: 'FUNCIONARIO_DESLIGADO',
+    entidade: 'FuncionarioEnterprise',
+    nivel: 'CRITICO',
+    parametro: 'funcionarioId',
+  })
   @Delete('funcionarios/:funcionarioId')
   @HttpCode(204)
   async desligar(

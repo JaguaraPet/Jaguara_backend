@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { SessoesRevogadas } from '../../../compartilhado/auth/sessoes-revogadas';
+import { AuditoriaService } from '../../../compartilhado/auditoria/auditoria.service';
 import {
   TipoUsuario,
   UsuarioAutenticado,
@@ -44,6 +45,7 @@ export class AutenticacaoService {
     private readonly jwt: JwtService,
     private readonly revogadas: SessoesRevogadas,
     private readonly config: ConfigService<Ambiente, true>,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   async login(
@@ -71,7 +73,17 @@ export class AutenticacaoService {
         where: { id: usuario.id },
         data: falha,
       });
-      if (falha.bloqueadoAte) throw Erros.contaBloqueada(falha.bloqueadoAte);
+      if (falha.bloqueadoAte) {
+        // Muitas falhas seguidas podem ser tentativa de invasão (RN03, RN31).
+        await this.auditoria.registrar({
+          acao: 'CONTA_BLOQUEADA',
+          entidade: 'Usuario',
+          entidadeId: usuario.id,
+          nivel: 'ALERTA',
+          autorId: usuario.id,
+        });
+        throw Erros.contaBloqueada(falha.bloqueadoAte);
+      }
       throw Erros.credenciaisInvalidas();
     }
 

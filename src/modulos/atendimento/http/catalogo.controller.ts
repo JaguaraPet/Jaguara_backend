@@ -25,6 +25,7 @@ import {
   Permissoes,
   SomenteEnterprise,
 } from '../../../compartilhado/auth/permissoes';
+import { Auditar } from '../../../compartilhado/auditoria/auditoria.interceptor';
 import { UsuarioAtual } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import {
@@ -127,6 +128,12 @@ export class CatalogoController {
   /** Alterar o preço não muda agendamentos já contratados (RN27). */
   @SomenteEnterprise()
   @Permissoes('servico:editar')
+  @Auditar({
+    acao: 'SERVICO_ALTERADO',
+    entidade: 'Servico',
+    nivel: 'INFO',
+    parametro: 'servicoId',
+  })
   @Patch('servicos/:servicoId')
   alterarServico(
     @UsuarioAtual() usuario: UsuarioAutenticado,
