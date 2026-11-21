@@ -18,6 +18,8 @@ export class PermissoesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(contexto: ExecutionContext): boolean {
+    // O WebSocket confere token e permissão chat:usar na conexão (ChatGateway, ADR-011).
+    if (contexto.getType() !== 'http') return true;
     const alvos = [contexto.getHandler(), contexto.getClass()];
     if (this.reflector.getAllAndOverride<boolean>(CHAVE_PUBLICA, alvos)) {
       return true;

@@ -167,6 +167,24 @@ A regra de disponibilidade fica em `modulos/atendimento/dominio/disponibilidade.
 
 Além da checagem na API, a restrição `EXCLUDE` do banco (MOD-03) impede dois agendamentos ativos simultâneos para o mesmo pet, profissional ou recurso.
 
+## Chat em tempo real (UC-43)
+
+| Rota | Uso |
+|---|---|
+| `GET` e `POST /v1/conversas` | O tutor lista as conversas dele e abre conversa com uma empresa em que é cliente ou tem agendamento (CT-43-01), ou com o assistente virtual, que exige o plano PANTERA ativo (402 `RN25_ASSINATURA_PANTERA`, CT-43-02). A empresa lista as conversas abertas com ela. |
+| `GET` e `POST /v1/conversas/{conversaId}/mensagens` | Histórico (50 por página, `antes` para voltar) e envio. Ler marca como lidas as mensagens dos outros. |
+| `POST /v1/conversas/{conversaId}/encerramento` | O tutor encerra e a conversa para de receber mensagens. |
+
+O tempo real usa Socket.IO no namespace `/tempo-real` (ADR-011). O cliente conecta com `auth: { token: <access token> }`; o servidor confere o token, a sessão e a permissão `chat:usar` e coloca a conexão na sala do usuário e, para a empresa, na sala da empresa. Cada mensagem nova vai para as salas da conversa no evento `mensagem:nova`. Para enviar pelo WebSocket, use `mensagem:enviar` com `{ conversaId, conteudo }` e leia a confirmação.
+
+```js
+const socket = io('http://localhost:3000/tempo-real', { auth: { token } });
+socket.on('mensagem:nova', (m) => console.log(m.conteudo));
+const r = await socket.emitWithAck('mensagem:enviar', { conversaId, conteudo: 'Oi!' });
+```
+
+No CapRover, ligue o suporte a WebSocket no app da API (opção "Websocket Support").
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |

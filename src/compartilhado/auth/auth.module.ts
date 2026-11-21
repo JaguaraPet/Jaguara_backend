@@ -3,8 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { Ambiente } from '../config/ambiente';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AutenticacaoGuard } from './autenticacao.guard';
+import { LimiteRequisicoesGuard } from './limite-requisicoes.guard';
 import { PermissoesGuard } from './permissoes.guard';
 import { SessoesRevogadas } from './sessoes-revogadas';
 
@@ -35,7 +36,7 @@ import { SessoesRevogadas } from './sessoes-revogadas';
   providers: [
     SessoesRevogadas,
     // A ordem dos guards globais é a ordem da camada de acesso (ADR-012, DS-07).
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: LimiteRequisicoesGuard },
     { provide: APP_GUARD, useClass: AutenticacaoGuard },
     { provide: APP_GUARD, useClass: PermissoesGuard },
   ],
