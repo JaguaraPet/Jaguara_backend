@@ -87,7 +87,8 @@ describe('UC-02 · Autenticar usuário (API)', () => {
     expect(conteudo).toMatchObject({
       sub: usuario.id,
       tipo: 'TUTOR',
-      permissoes: ['pet:ler'],
+      // A API também sincroniza o catálogo de permissões no perfil Tutor ao iniciar.
+      permissoes: expect.arrayContaining(['pet:ler']) as string[],
     });
     const atualizado = await prisma.usuario.findUniqueOrThrow({
       where: { id: usuario.id },

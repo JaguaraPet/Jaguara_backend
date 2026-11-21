@@ -128,5 +128,8 @@
     "protobufjs": false,
     "msgpackr-extract": false,
     "@scarf/scarf": false
+  },
+  "overrides": {
+    "effect": "3.22.4"
   }
 }

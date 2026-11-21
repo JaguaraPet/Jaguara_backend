@@ -90,9 +90,14 @@ Rotas sob o prefixo `/v1` (OpenAPI). Senha em hash Argon2id, access token JWT de
 
 | Rota | Uso |
 |---|---|
+| `POST /v1/auth/cadastro/tutor` | UC-01: cria o tutor com status pendente, guarda o CPF cifrado com índice cego, registra o aceite dos termos vigentes (RN42) e manda o link de confirmação por e-mail. CPF ou e-mail repetido recebe 409 (RN01). |
+| `POST /v1/auth/cadastro/empresa` | UC-32: o mesmo para a empresa, com CNPJ validado e os perfis padrão Proprietário, Atendente e Profissional. |
+| `POST /v1/auth/confirmacao` | RN02: o link vale 24 horas e uma única vez; ativa a conta. Link vencido, usado ou desconhecido recebe 410. |
 | `POST /v1/auth/login` | UC-02: e-mail e senha. Cinco falhas seguidas bloqueiam a conta por 5 minutos (RN03, resposta 423). Conta com e-mail não confirmado recebe 403 (RN02). |
 | `POST /v1/auth/renovacao` | Novo access token e novo refresh token. Encerra a sessão depois de 4 horas sem atividade (RN04) e relê as permissões do perfil. |
 | `POST /v1/auth/logout` | Apaga a sessão e coloca o `sid` na lista de sessões revogadas do Redis: o access token deixa de valer na requisição seguinte. |
+
+Na inicialização, a API sincroniza no banco o catálogo de permissões e os perfis globais Tutor, Administrador e Empresa (`CatalogoAcessoService`), sem apagar o que o administrador acrescentou. A senha precisa de pelo menos 8 caracteres, com letras e números.
 
 A camada de acesso é única para todas as rotas (ADR-012) e roda nesta ordem:
 
