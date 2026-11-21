@@ -1,0 +1,507 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomBytes } from 'node:crypto';
+import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa';
+import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
+import { Ambiente } from '../../../compartilhado/config/ambiente';
+import {
+  Cifragem,
+  cpfValido,
+  mascararCpf,
+  normalizarCpf,
+} from '../../../compartilhado/cripto/cifragem';
+import { Erros } from '../../../compartilhado/erros/erro-negocio';
+import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
+import {
+  codigoCliente,
+  DIAS_PRE_CADASTRO,
+  preCadastroVencido,
+  situacaoConsentimento,
+  SituacaoConsentimento,
+} from '../dominio/regras-cliente';
+
+export interface NovoCliente {
+  nome: string;
+  cpf?: string;
+  telefone?: string;
+  email?: string;
+  observacoes?: string;
+  meioConsentimento: 'ASSINATURA_PRESENCIAL' | 'LINK_DIGITAL';
+  evidenciaArquivoUrl?: string;
+}
+
+export interface ClienteResposta {
+  id: string;
+  codigo: string;
+  nome: string;
+  cpf?: string;
+  telefone?: string;
+  email?: string;
+  possuiConta: boolean;
+  ativo: boolean;
+  consentimento: SituacaoConsentimento;
+  linkTermo?: string;
+}
+
+export interface PetEntrada {
+  nome: string;
+  racaId: string;
+  dataNascimento?: string;
+  sexo: 'MACHO' | 'FEMEA';
+  pesoKg?: number;
+  cor?: string;
+  microchip?: string;
+  castrado: boolean;
+}
+
+type Tx = Pick<PrismaService, 'cliente' | 'clientePet' | 'responsavelPet'>;
+
+const incluirConsentimento = {
+  consentimento: { orderBy: { criadoEm: 'desc' as const }, take: 1 },
+} as const;
+
+/**
+ * Clientes da empresa, com ou sem conta no Jaguara (UC-21, ADR-010 item 3). Dados além de
+ * nome e contato, pets e agendamentos só depois do consentimento no termo vigente (RN41).
+ */
+@Injectable()
+export class ClientesService {
+  private readonly logger = new Logger(ClientesService.name);
+  private readonly cifragem: Cifragem;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fila: FilaEmailService,
+    private readonly config: ConfigService<Ambiente, true>,
+  ) {
+    this.cifragem = new Cifragem(
+      config.get('CHAVE_CRIPTOGRAFIA', { infer: true }),
+    );
+  }
+
+  async listar(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+  ): Promise<ClienteResposta[]> {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const clientes = await this.prisma.cliente.findMany({
+      where: { empresaId },
+      include: incluirConsentimento,
+      orderBy: { nome: 'asc' },
+    });
+    return clientes.map((c) => this.resposta(c));
+  }
+
+  async cadastrar(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    dados: NovoCliente,
+    ip: string,
+  ): Promise<ClienteResposta> {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const presencial = dados.meioConsentimento === 'ASSINATURA_PRESENCIAL';
+    if (presencial && !dados.evidenciaArquivoUrl) {
+      throw Erros.dadosInvalidos(
+        'evidenciaArquivoUrl',
+        'Anexe a cópia do termo assinado (RN41).',
+      );
+    }
+    if (!presencial && !dados.email) {
+      throw Erros.dadosInvalidos(
+        'email',
+        'Informe o e-mail do cliente para enviar o link do termo.',
+      );
+    }
+    const cpf = dados.cpf ? normalizarCpf(dados.cpf) : undefined;
+    if (cpf && !cpfValido(cpf))
+      throw Erros.dadosInvalidos('cpf', 'CPF inválido. Confira os números.');
+    const email = dados.email?.trim().toLowerCase();
+    const cpfHash = cpf ? this.cifragem.indiceCego(cpf) : undefined;
+
+    const termo = await this.prisma.termoUso.findFirst({
+      where: {
+        tipo: 'CONSENTIMENTO_CLIENTE',
+        dataVigencia: { lte: new Date() },
+      },
+      orderBy: { dataVigencia: 'desc' },
+    });
+    if (!termo)
+      throw Erros.conflito(
+        'TERMOS_INDISPONIVEIS',
+        'O termo de consentimento ainda não foi publicado.',
+      );
+
+    // Liga à conta do tutor quando o e-mail ou o CPF já existem (ADR-010).
+    const tutor = await this.prisma.tutor.findFirst({
+      where: {
+        OR: [
+          ...(email ? [{ usuario: { email } }] : []),
+          ...(cpfHash ? [{ cpfHash }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (tutor) {
+      const jaCliente = await this.prisma.cliente.findFirst({
+        where: { empresaId, tutorId: tutor.id },
+        select: { id: true },
+      });
+      if (jaCliente)
+        throw Erros.conflito(
+          'RN25_CLIENTE_EXISTENTE',
+          'Esta pessoa já é cliente da empresa.',
+        );
+    }
+    if (
+      cpfHash &&
+      (await this.prisma.cliente.findFirst({ where: { empresaId, cpfHash } }))
+    ) {
+      throw Erros.conflito(
+        'RN25_CLIENTE_EXISTENTE',
+        'Já existe um cliente com este CPF na empresa.',
+      );
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const agora = new Date();
+    const sequencia =
+      (await this.prisma.cliente.count({ where: { empresaId } })) + 1;
+    const cliente = await this.prisma.cliente.create({
+      data: {
+        empresaId,
+        tutorId: tutor?.id,
+        codigo: codigoCliente(sequencia),
+        nome: dados.nome.trim(),
+        telefone: dados.telefone,
+        email,
+        // Pré-cadastro por link guarda só nome e contato até o aceite (RN41).
+        ...(presencial && cpf
+          ? { cpfCifrado: this.cifragem.cifrar(cpf), cpfHash }
+          : {}),
+        observacoes: presencial ? dados.observacoes : null,
+        dataVinculo: agora,
+        ativo: true,
+        consentimento: {
+          create: {
+            termoId: termo.id,
+            meioColeta: dados.meioConsentimento,
+            aceito: presencial,
+            dataAceite: agora,
+            evidenciaUrl: dados.evidenciaArquivoUrl,
+            ipOrigem: ip.slice(0, 255),
+            tokenLink: this.hash(token),
+            registradoPorId:
+              usuario.tipo === 'FUNCIONARIO' ? usuario.sub : undefined,
+          },
+        },
+      },
+      include: incluirConsentimento,
+    });
+
+    const empresa = await this.nomeEmpresa(empresaId);
+    if (!presencial && email) {
+      await this.fila.enviar('TERMO_CLIENTE', email, {
+        nome: cliente.nome,
+        empresa,
+        link: this.link(token),
+        validadeDias: DIAS_PRE_CADASTRO,
+      });
+    }
+    return {
+      ...this.resposta(cliente),
+      ...(presencial ? {} : { linkTermo: this.link(token) }),
+    };
+  }
+
+  /** Pet de cliente sem conta (ADR-010): só com consentimento vigente (RN41, CT-21-02). */
+  async cadastrarPet(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    clienteId: string,
+    dados: PetEntrada,
+  ) {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, empresaId },
+      include: incluirConsentimento,
+    });
+    if (!cliente || !cliente.ativo)
+      throw Erros.naoEncontrado('Cliente não encontrado');
+    if (situacaoConsentimento(cliente.consentimento[0]) !== 'VIGENTE') {
+      throw Erros.conflito(
+        'RN41_SEM_CONSENTIMENTO',
+        'O cliente ainda não aceitou o termo de consentimento.',
+      );
+    }
+    if (cliente.tutorId) {
+      throw Erros.conflito(
+        'CLIENTE_COM_CONTA',
+        'O cliente tem conta no Jaguara: os pets são cadastrados por ele no app.',
+      );
+    }
+    const raca = await this.prisma.raca.findUnique({
+      where: { id: dados.racaId },
+      include: { especie: true },
+    });
+    if (!raca) throw Erros.dadosInvalidos('racaId', 'Escolha uma raça válida.');
+
+    const pet = await this.prisma.pet.create({
+      data: {
+        nome: dados.nome.trim(),
+        racaId: dados.racaId,
+        dataNascimento: dados.dataNascimento
+          ? new Date(`${dados.dataNascimento}T00:00:00Z`)
+          : null,
+        sexo: dados.sexo,
+        pesoKg: dados.pesoKg,
+        cor: dados.cor,
+        microchip: dados.microchip,
+        castrado: dados.castrado,
+        status: 'ATIVO',
+        clientePet: { create: { clienteId } },
+      },
+    });
+    return {
+      id: pet.id,
+      nome: pet.nome,
+      racaId: pet.racaId,
+      raca: raca.nome,
+      especie: raca.especie.nome,
+      sexo: pet.sexo,
+      castrado: pet.castrado,
+      dataNascimento: dados.dataNascimento,
+      pesoKg: dados.pesoKg,
+      cor: pet.cor ?? undefined,
+      microchip: pet.microchip ?? undefined,
+      status: pet.status,
+    };
+  }
+
+  /** Revogação pedida pelo cliente à empresa (RN41). */
+  async revogarPelaEmpresa(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    clienteId: string,
+  ) {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, empresaId },
+      include: incluirConsentimento,
+    });
+    if (!cliente) throw Erros.naoEncontrado('Cliente não encontrado');
+    await this.revogar(cliente.id, cliente.consentimento[0]?.id);
+  }
+
+  /** Página pública do termo (UC-21, UX-01 seção 4.1). */
+  async abrirTermo(token: string) {
+    const consentimento = await this.consentimentoDoLink(token);
+    const situacao = situacaoConsentimento(consentimento);
+    if (
+      situacao === 'PENDENTE' &&
+      preCadastroVencido(consentimento.criadoEm, new Date())
+    ) {
+      throw Erros.linkExpirado();
+    }
+    const t = consentimento.termo;
+    return {
+      empresa: consentimento.cliente!.empresa.nomeFantasia,
+      termo: {
+        id: t.id,
+        tipo: t.tipo,
+        versao: t.versao,
+        titulo: t.titulo,
+        conteudo: t.conteudo,
+        dataVigencia: t.dataVigencia.toISOString().slice(0, 10),
+        obrigatorio: t.obrigatorio,
+      },
+      situacao,
+    };
+  }
+
+  /** "Concordo" no link: registra data, hora, IP e versão e manda o comprovante (CT-21-04). */
+  async aceitar(token: string, ip: string): Promise<void> {
+    const consentimento = await this.consentimentoDoLink(token);
+    const situacao = situacaoConsentimento(consentimento);
+    if (situacao === 'VIGENTE') return;
+    if (
+      situacao === 'REVOGADO' ||
+      preCadastroVencido(consentimento.criadoEm, new Date())
+    ) {
+      throw Erros.linkExpirado();
+    }
+    const agora = new Date();
+    await this.prisma.consentimento.update({
+      where: { id: consentimento.id },
+      data: { aceito: true, dataAceite: agora, ipOrigem: ip.slice(0, 255) },
+    });
+    const cliente = consentimento.cliente!;
+    if (cliente.email) {
+      await this.fila.enviar('COMPROVANTE_CONSENTIMENTO', cliente.email, {
+        nome: cliente.nome,
+        empresa: cliente.empresa.nomeFantasia,
+        versao: consentimento.termo.versao,
+        dataHora: agora.toLocaleString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+        }),
+        link: this.link(token),
+      });
+    }
+  }
+
+  /** Revogação pelo link do comprovante, sem conta (CT-21-06). */
+  async revogarPeloLink(token: string): Promise<void> {
+    const consentimento = await this.consentimentoDoLink(token);
+    if (situacaoConsentimento(consentimento) === 'REVOGADO') return;
+    await this.revogar(consentimento.clienteId!, consentimento.id);
+    this.logger.log(
+      `Consentimento revogado pelo cliente da empresa ${consentimento.cliente!.empresaId}`,
+    );
+  }
+
+  /**
+   * RC-33: o tutor que cria a conta com o e-mail ou o CPF de um cliente sem conta passa a ser
+   * dono do cadastro e responsável principal dos pets dele (CT-21-03).
+   */
+  async vincularTutor(
+    tx: Tx,
+    tutorId: string,
+    email: string,
+    cpfHash: string,
+  ): Promise<void> {
+    const clientes = await tx.cliente.findMany({
+      where: { tutorId: null, ativo: true, OR: [{ email }, { cpfHash }] },
+      include: { clientePet: true },
+    });
+    const empresas = new Set<string>();
+    for (const cliente of clientes) {
+      if (empresas.has(cliente.empresaId)) continue;
+      empresas.add(cliente.empresaId);
+      await tx.cliente.update({ where: { id: cliente.id }, data: { tutorId } });
+      for (const { petId } of cliente.clientePet) {
+        const principal = await tx.responsavelPet.findFirst({
+          where: { petId, tipo: 'PRINCIPAL' },
+        });
+        if (principal) continue;
+        await tx.responsavelPet.create({
+          data: {
+            petId,
+            tutorId,
+            tipo: 'PRINCIPAL',
+            ativo: true,
+            dataVinculo: new Date(),
+          },
+        });
+      }
+    }
+  }
+
+  /** Rotina diária: exclui pré-cadastros sem aceite há mais de 7 dias (RN41, CT-21-05). */
+  async limparPreCadastros(agora = new Date()): Promise<number> {
+    const limite = new Date(agora.getTime() - DIAS_PRE_CADASTRO * 86_400_000);
+    const vencidos = await this.prisma.cliente.findMany({
+      where: {
+        ativo: true,
+        criadoEm: { lt: limite },
+        consentimento: { every: { aceito: false, dataRevogacao: null } },
+      },
+      select: { id: true, empresaId: true },
+    });
+    for (const cliente of vencidos) {
+      await this.prisma.$transaction([
+        this.prisma.consentimento.deleteMany({
+          where: { clienteId: cliente.id },
+        }),
+        this.prisma.cliente.delete({ where: { id: cliente.id } }),
+      ]);
+      this.logger.log(
+        `Pré-cadastro vencido excluído da empresa ${cliente.empresaId}`,
+      );
+    }
+    return vencidos.length;
+  }
+
+  private async revogar(clienteId: string, consentimentoId?: string) {
+    const agora = new Date();
+    await this.prisma.$transaction([
+      ...(consentimentoId
+        ? [
+            this.prisma.consentimento.update({
+              where: { id: consentimentoId },
+              data: { aceito: false, dataRevogacao: agora },
+            }),
+          ]
+        : []),
+      // Cliente inativado e dados anonimizados, exceto o exigido por lei (RN41, ARQ-02).
+      this.prisma.cliente.update({
+        where: { id: clienteId },
+        data: {
+          ativo: false,
+          nome: 'Cliente removido',
+          cpfCifrado: null,
+          cpfHash: null,
+          telefone: null,
+          email: null,
+          observacoes: null,
+          tutorId: null,
+        },
+      }),
+    ]);
+  }
+
+  private async consentimentoDoLink(token: string) {
+    const consentimento = await this.prisma.consentimento.findUnique({
+      where: { tokenLink: this.hash(token) },
+      include: {
+        termo: true,
+        cliente: { include: { empresa: { select: { nomeFantasia: true } } } },
+      },
+    });
+    if (!consentimento?.cliente)
+      throw Erros.naoEncontrado('Link não encontrado');
+    return consentimento;
+  }
+
+  private async nomeEmpresa(empresaId: string) {
+    const empresa = await this.prisma.empresaEnterprise.findUniqueOrThrow({
+      where: { id: empresaId },
+      select: { nomeFantasia: true },
+    });
+    return empresa.nomeFantasia;
+  }
+
+  private link(token: string) {
+    const url = this.config.get('URL_WEB', { infer: true }).split(',')[0];
+    return `${url}/termo/${token}`;
+  }
+
+  private hash(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private resposta(c: {
+    id: string;
+    codigo: string;
+    nome: string;
+    cpfCifrado: Uint8Array | null;
+    telefone: string | null;
+    email: string | null;
+    tutorId: string | null;
+    ativo: boolean;
+    consentimento: { aceito: boolean; dataRevogacao: Date | null }[];
+  }): ClienteResposta {
+    return {
+      id: c.id,
+      codigo: c.codigo,
+      nome: c.nome,
+      cpf: c.cpfCifrado
+        ? mascararCpf(this.cifragem.decifrar(c.cpfCifrado))
+        : undefined,
+      telefone: c.telefone ?? undefined,
+      email: c.email ?? undefined,
+      possuiConta: c.tutorId !== null,
+      ativo: c.ativo,
+      consentimento: situacaoConsentimento(c.consentimento[0]),
+    };
+  }
+}

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AtendimentoModule } from '../atendimento/atendimento.module';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { AutenticacaoService } from './aplicacao/autenticacao.service';
 import { CadastroService } from './aplicacao/cadastro.service';
@@ -9,7 +10,7 @@ import { CadastroController } from './http/cadastro.controller';
 import { FuncionariosController } from './http/funcionarios.controller';
 
 @Module({
-  imports: [NotificacaoModule],
+  imports: [NotificacaoModule, AtendimentoModule],
   controllers: [
     AutenticacaoController,
     CadastroController,

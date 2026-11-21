@@ -4,6 +4,7 @@ import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import { CadastroService, DadosEmpresa, DadosTutor } from './cadastro.service';
+import { ClientesService } from '../../atendimento/aplicacao/clientes.service';
 import { CatalogoAcessoService } from './catalogo-acesso.service';
 
 const tutor: DadosTutor = {
@@ -40,7 +41,10 @@ function criarPrisma(): Mocks & { $transaction: jest.Mock } {
       update: jest.fn(),
       findUniqueOrThrow: jest.fn().mockResolvedValue({ senhaHash: 'hash' }),
     },
-    tutor: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
+    tutor: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+    },
     empresaEnterprise: {
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn(),
@@ -78,9 +82,11 @@ describe('CadastroService', () => {
   let fila: { enviar: jest.Mock };
   let catalogo: { criarPerfisDaEmpresa: jest.Mock };
   let servico: CadastroService;
+  let clientes: { vincularTutor: jest.Mock };
 
   beforeEach(() => {
     prisma = criarPrisma();
+    clientes = { vincularTutor: jest.fn().mockResolvedValue(undefined) };
     fila = { enviar: jest.fn().mockResolvedValue(undefined) };
     catalogo = { criarPerfisDaEmpresa: jest.fn().mockResolvedValue(undefined) };
     const valores: Record<string, string> = {
@@ -93,6 +99,7 @@ describe('CadastroService', () => {
       fila as unknown as FilaEmailService,
       catalogo as unknown as CatalogoAcessoService,
       config as unknown as ConfigService<Ambiente, true>,
+      clientes as unknown as ClientesService,
     );
   });
 
@@ -113,6 +120,7 @@ describe('CadastroService', () => {
     expect(usuario.data.status).toBe('PENDENTE_CONFIRMACAO');
     expect(usuario.data.senhaHash).toMatch(/^\$argon2id\$/);
     expect(prisma.consentimento.createMany).toHaveBeenCalled();
+    expect(clientes.vincularTutor).not.toHaveBeenCalled();
     const token = (
       prisma.tokenAcesso.create.mock.calls[0] as [
         { data: { token: string; tipo: string } },
@@ -232,5 +240,27 @@ describe('CadastroService', () => {
     )[0].data;
     expect(dados.status).toBe('ATIVA');
     expect(dados.senhaHash).toMatch(/^\$argon2id\$/);
+  });
+
+  it('deve ligar o tutor aos cadastros de cliente quando ele confirma o e-mail (RC-33)', async () => {
+    prisma.tokenAcesso.findUnique.mockResolvedValue({
+      id: 'k1',
+      usuarioId: 'u1',
+      tipo: 'CONFIRMACAO_EMAIL',
+      utilizado: false,
+      expiraEm: new Date(Date.now() + 60_000),
+    });
+    prisma.tutor.findUnique.mockResolvedValue({
+      id: 'u1',
+      cpfHash: 'h',
+      usuario: { email: 'ana@exemplo.com' },
+    });
+    await servico.confirmarEmail('abc');
+    expect(clientes.vincularTutor).toHaveBeenCalledWith(
+      prisma,
+      'u1',
+      'ana@exemplo.com',
+      'h',
+    );
   });
 });

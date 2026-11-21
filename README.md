@@ -134,6 +134,17 @@ Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e 
 | `POST /v1/empresas/{empresaId}/servicos` e `PATCH /v1/servicos/{servicoId}` | Cadastra, edita e desativa serviços (`servico:editar`). O preço contratado fica no agendamento, então mudar o preço não altera o que já foi contratado (RN27). |
 | `GET` e `POST /v1/empresas/{empresaId}/recursos`, `PATCH /v1/recursos/{recursoId}` | Salas, equipamentos, baias e veículos da empresa (`recurso:editar`). Rotas acrescentadas ao contrato na versão 1.4.0. |
 
+## Clientes da empresa (UC-21)
+
+| Rota | Uso |
+|---|---|
+| `GET` e `POST /v1/empresas/{empresaId}/clientes` | Lista e cadastra clientes. Com `ASSINATURA_PRESENCIAL`, a cópia do termo assinado é obrigatória e o consentimento já fica vigente. Com `LINK_DIGITAL`, o cadastro fica pendente só com nome e contato, e o cliente recebe o link do termo por e-mail (RN41). Se o e-mail ou o CPF são de um tutor, o cadastro fica ligado à conta dele (ADR-010). |
+| `POST .../clientes/{clienteId}/pets` | Pet de cliente sem conta, só com consentimento vigente (CT-21-02). |
+| `POST .../clientes/{clienteId}/consentimento/revogacao` | Revogação pedida à empresa: cliente inativado e dados anonimizados. |
+| `GET /v1/consentimentos-clientes/{token}`, `.../aceite` e `.../revogacao` | Página pública do termo: o aceite grava data, hora, IP e versão e manda o comprovante; o link do comprovante revoga sem precisar de conta. |
+
+Quando o cliente cria conta de tutor e confirma o e-mail, ele assume o cadastro e passa a ser o responsável principal dos pets cadastrados pela empresa (RC-33). Uma rotina diária do worker, às 3h, exclui pré-cadastros sem aceite há mais de 7 dias (CT-21-05).
+
 ## Filas e e-mail
 
 O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.

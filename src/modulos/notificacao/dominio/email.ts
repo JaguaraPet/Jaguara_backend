@@ -1,6 +1,10 @@
 /** Mensagens de e-mail transacional (ARQ-03, seção 3.3). */
 export type TipoEmail =
-  'CONFIRMACAO_CADASTRO' | 'RECUPERACAO_SENHA' | 'CONVITE_FUNCIONARIO';
+  | 'CONFIRMACAO_CADASTRO'
+  | 'RECUPERACAO_SENHA'
+  | 'CONVITE_FUNCIONARIO'
+  | 'TERMO_CLIENTE'
+  | 'COMPROVANTE_CONSENTIMENTO';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -10,6 +14,19 @@ export interface DadosEmail {
     empresa: string;
     link: string;
     validadeHoras: number;
+  };
+  TERMO_CLIENTE: {
+    nome: string;
+    empresa: string;
+    link: string;
+    validadeDias: number;
+  };
+  COMPROVANTE_CONSENTIMENTO: {
+    nome: string;
+    empresa: string;
+    versao: string;
+    dataHora: string;
+    link: string;
   };
 }
 
@@ -139,6 +156,50 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           { texto: 'Criar minha senha', link: d.link },
           `O link vale por ${d.validadeHoras} horas. Se você não conhece esta empresa, ignore este e-mail.`,
+        ),
+      };
+    }
+    case 'TERMO_CLIENTE': {
+      const d = pedido.dados as DadosEmail['TERMO_CLIENTE'];
+      return {
+        para: pedido.para,
+        assunto: `${d.empresa}: termo de consentimento para o seu cadastro`,
+        texto: [
+          `Olá, ${d.nome}!`,
+          `${d.empresa} quer cadastrar você e seus pets para os atendimentos. Antes, leia e aceite o termo de consentimento pelo link abaixo:`,
+          d.link,
+          `O link vale por ${d.validadeDias} dias. Sem o aceite, o pré-cadastro é excluído.`,
+        ].join('\n\n'),
+        html: layout(
+          'Termo de consentimento',
+          [
+            `Olá, ${escaparHtml(d.nome)}!`,
+            `${escaparHtml(d.empresa)} quer cadastrar você e seus pets para os atendimentos. Antes, leia e aceite o termo de consentimento.`,
+          ],
+          { texto: 'Ler o termo', link: d.link },
+          `O link vale por ${d.validadeDias} dias. Sem o aceite, o pré-cadastro é excluído.`,
+        ),
+      };
+    }
+    case 'COMPROVANTE_CONSENTIMENTO': {
+      const d = pedido.dados as DadosEmail['COMPROVANTE_CONSENTIMENTO'];
+      return {
+        para: pedido.para,
+        assunto: `Comprovante do seu consentimento para ${d.empresa}`,
+        texto: [
+          `Olá, ${d.nome}!`,
+          `Registramos seu aceite do termo de consentimento de ${d.empresa} (versão ${d.versao}) em ${d.dataHora}.`,
+          `Você pode revogar quando quiser, pelo link abaixo, sem precisar de conta:`,
+          d.link,
+        ].join('\n\n'),
+        html: layout(
+          'Consentimento registrado',
+          [
+            `Olá, ${escaparHtml(d.nome)}!`,
+            `Registramos seu aceite do termo de consentimento de ${escaparHtml(d.empresa)} (versão ${escaparHtml(d.versao)}) em ${escaparHtml(d.dataHora)}.`,
+          ],
+          { texto: 'Ver ou revogar', link: d.link },
+          'Você pode revogar quando quiser por este link, sem precisar de conta.',
         ),
       };
     }

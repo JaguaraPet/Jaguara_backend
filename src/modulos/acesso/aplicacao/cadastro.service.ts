@@ -10,6 +10,7 @@ import {
 } from '../../../compartilhado/cripto/cifragem';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { ClientesService } from '../../atendimento/aplicacao/clientes.service';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import {
   cnpjValido,
@@ -74,6 +75,7 @@ export class CadastroService {
     private readonly fila: FilaEmailService,
     private readonly catalogo: CatalogoAcessoService,
     private readonly config: ConfigService<Ambiente, true>,
+    private readonly clientes: ClientesService,
   ) {
     this.cifragem = new Cifragem(
       config.get('CHAVE_CRIPTOGRAFIA', { infer: true }),
@@ -253,6 +255,23 @@ export class CadastroService {
         },
       }),
     ]);
+
+    // RC-33: com o e-mail confirmado, o tutor assume o cadastro e os pets de cliente sem conta
+    // com o mesmo e-mail ou CPF (CT-21-03).
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: registro.usuarioId },
+      select: { id: true, cpfHash: true, usuario: { select: { email: true } } },
+    });
+    if (tutor) {
+      await this.prisma.$transaction((tx) =>
+        this.clientes.vincularTutor(
+          tx,
+          tutor.id,
+          tutor.usuario.email,
+          tutor.cpfHash,
+        ),
+      );
+    }
   }
 
   private validarSenha(senha: string) {
