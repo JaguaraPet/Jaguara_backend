@@ -252,6 +252,14 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 
 Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificacoesService`); o worker dispara os que vencem.
 
+## Calendário do pet (UC-10)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/pets/{petId}/eventos?de=&ate=` | Eventos do tutor e agendamentos ativos com empresas, em ordem de início (sem período: de agora a 30 dias). |
+| `POST /v1/pets/{petId}/eventos` | Cria o evento se o pet estiver livre (RN14, CT-10-02; evento sem fim ocupa uma hora) e agenda o lembrete uma hora antes para os responsáveis (CT-10-01). |
+| `DELETE /v1/eventos/{eventoId}` | Exclui o evento manual e cancela o lembrete. |
+
 ## Despesas do pet (UC-06)
 
 | Rota | Uso |
