@@ -37,6 +37,7 @@
     "contrato:atualizar": "node -e \"fetch('https://raw.githubusercontent.com/JaguaraPet/Jaguara_doc/main/docs/03-arquitetura/api/openapi.yaml').then(r=>r.text()).then(t=>require('fs').writeFileSync('contrato/openapi.yaml',t))\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.9.0",
     "@nestjs/bullmq": "11.0.5",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "4.0.4",

@@ -89,4 +89,11 @@ export const Erros = {
       'Recurso do plano PANTERA',
       'Assine o PANTERA para conversar com o assistente virtual.',
     ),
+  limiteAssistente: (limite: number) =>
+    new ErroNegocio(
+      HttpStatus.TOO_MANY_REQUESTS,
+      'ASSISTENTE_LIMITE_DIARIO',
+      'Limite diário do assistente atingido',
+      `O assistente responde até ${limite} mensagens por dia. Volte amanhã.`,
+    ),
 };

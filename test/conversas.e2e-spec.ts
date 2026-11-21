@@ -25,6 +25,7 @@ describe('UC-43 · Chat em tempo real (API e WebSocket)', () => {
   let tokenAna: string;
   let tokenBia: string;
   let conversaId: string;
+  let assistenteId: string;
   const sockets: Socket[] = [];
 
   const http = () => request(app.getHttpServer());
@@ -54,6 +55,8 @@ describe('UC-43 · Chat em tempo real (API e WebSocket)', () => {
     );
 
   beforeAll(async () => {
+    // Sem chave de IA o assistente responde simulado, sem custo nos testes.
+    delete process.env.ANTHROPIC_API_KEY;
     prisma = criarPrismaTeste();
     await limparBanco(prisma);
     app = await criarAppTeste();
@@ -171,10 +174,64 @@ describe('UC-43 · Chat em tempo real (API e WebSocket)', () => {
         tutorId: anaId,
       },
     });
-    await como(
+    const criada = await como(
       tokenAna,
       http().post('/v1/conversas').send({ tipo: 'ASSISTENTE_VIRTUAL' }),
     ).expect(201);
+    assistenteId = (criada.body as { id: string }).id;
+  });
+
+  it('deve abrir o assistente com o aviso e responder em tempo real (simulado sem chave)', async () => {
+    const historico = await como(
+      tokenAna,
+      http().get(`/v1/conversas/${assistenteId}/mensagens`),
+    ).expect(200);
+    expect(historico.body).toEqual([
+      expect.objectContaining({
+        remetenteId: null,
+        conteudo: expect.stringContaining(
+          'não substituo o veterinário',
+        ) as unknown,
+      }),
+    ]);
+
+    const ana = await conectar(tokenAna);
+    const respostas: Mensagem[] = [];
+    const chegou = new Promise<void>((resolve) =>
+      ana.on('mensagem:nova', (m: Mensagem) => {
+        respostas.push(m);
+        if (m.remetenteId === null) resolve();
+      }),
+    );
+    await como(
+      tokenAna,
+      http()
+        .post(`/v1/conversas/${assistenteId}/mensagens`)
+        .send({ conteudo: 'Quantos passeios por dia?' }),
+    ).expect(201);
+    await chegou;
+    expect(respostas.map((m) => m.remetenteId)).toEqual([anaId, null]);
+    expect(respostas[1].conteudo).toContain('Passeios diários');
+  });
+
+  it('deve parar no limite diário de mensagens do assistente', async () => {
+    const hoje = new Date();
+    await prisma.mensagem.createMany({
+      data: Array.from({ length: 30 }, (_, i) => ({
+        conversaId: assistenteId,
+        conteudo: `Pergunta ${i}`,
+        remetenteId: anaId,
+        dataHoraEnvio: hoje,
+        lida: true,
+      })),
+    });
+    const resposta = await como(
+      tokenAna,
+      http()
+        .post(`/v1/conversas/${assistenteId}/mensagens`)
+        .send({ conteudo: 'Mais uma?' }),
+    ).expect(429);
+    expect(resposta.body).toMatchObject({ codigo: 'ASSISTENTE_LIMITE_DIARIO' });
   });
 
   it('deve recusar mensagem depois que o tutor encerra a conversa', async () => {

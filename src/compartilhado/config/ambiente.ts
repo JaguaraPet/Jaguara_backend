@@ -36,6 +36,11 @@ export const esquemaAmbiente = z.object({
 
   URL_WEB: z.url(),
   URL_APP: z.string().min(1),
+
+  // Assistente virtual (ARQ-03, seção 3.5). Sem chave, o assistente responde simulado.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  IA_MODELO: z.string().optional(),
+  IA_LIMITE_DIARIO: z.coerce.number().int().positive().default(30),
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;
