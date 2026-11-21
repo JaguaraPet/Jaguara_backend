@@ -4,6 +4,7 @@ import { PrismaModule } from '../../compartilhado/prisma/prisma.module';
 import { CanalTempoReal } from '../comunicacao/aplicacao/canal-tempo-real';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PoliticaAcessoPet } from '../pet/aplicacao/politica-acesso-pet';
+import { AssinaturasService } from './aplicacao/assinaturas.service';
 import { PagamentosService } from './aplicacao/pagamentos.service';
 import { provedorGateway } from './infra/gateway.provider';
 import {
@@ -25,6 +26,7 @@ import {
     CanalTempoReal,
     PoliticaAcessoPet,
     PagamentosService,
+    AssinaturasService,
     provedorGateway,
     ReconciliacaoPagamentosProcessor,
   ],

@@ -92,6 +92,15 @@ describe('conversa (UC-43, RN25)', () => {
     expect(assinaturaVigente({ ...base, status: 'CANCELADA' }, hoje)).toBe(
       false,
     );
+    expect(
+      assinaturaVigente(
+        { ...base, status: 'CANCELADA', dataFim: new Date('2026-12-01') },
+        hoje,
+      ),
+    ).toBe(true);
+    expect(assinaturaVigente({ ...base, status: 'PENDENTE' }, hoje)).toBe(
+      false,
+    );
     expect(assinaturaVigente({ ...base, plano: 'GRATUITO' }, hoje)).toBe(false);
   });
 

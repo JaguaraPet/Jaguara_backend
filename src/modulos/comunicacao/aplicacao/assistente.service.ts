@@ -30,7 +30,11 @@ export class AssistenteService {
   /** RN25: só com a assinatura PANTERA ativa e dentro do prazo. */
   async temPantera(tutorId: string): Promise<boolean> {
     const assinaturas = await this.prisma.assinatura.findMany({
-      where: { tutorId, plano: 'PANTERA', status: 'ATIVA' },
+      where: {
+        tutorId,
+        plano: 'PANTERA',
+        status: { in: ['ATIVA', 'CANCELADA'] },
+      },
     });
     const hoje = new Date();
     return assinaturas.some((a) => assinaturaVigente(a, hoje));

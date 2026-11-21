@@ -20,6 +20,7 @@ import type {
   StatusPagamento,
 } from '../dominio/pagamento';
 import { GatewayIndisponivel } from '../infra/gateway-mercado-pago';
+import { AssinaturasService } from './assinaturas.service';
 
 export interface Pagamento {
   id: string;
@@ -51,6 +52,7 @@ export class PagamentosService {
     private readonly fila: FilaEmailService,
     private readonly canal: CanalTempoReal,
     @Inject(GATEWAY_PAGAMENTO) private readonly gateway: GatewayPagamento,
+    private readonly assinaturas: AssinaturasService,
   ) {}
 
   /**
@@ -69,10 +71,10 @@ export class PagamentosService {
       parcelas?: number;
     },
   ): Promise<Pagamento> {
-    if (!pedido.agendamentoId) {
+    if (!pedido.agendamentoId === !pedido.assinaturaId) {
       throw Erros.dadosInvalidos(
         'agendamentoId',
-        'Escolha o agendamento que você vai pagar.',
+        'Escolha o agendamento ou a assinatura que você vai pagar.',
       );
     }
     if (pedido.metodo === 'BOLETO') {
@@ -86,37 +88,28 @@ export class PagamentosService {
       );
     }
 
-    const agendamento = await this.prisma.agendamento.findUnique({
-      where: { id: pedido.agendamentoId },
-      include: {
-        servico: { select: { nome: true, empresaId: true } },
-        pet: { select: { nome: true } },
-      },
-    });
-    if (!agendamento) throw Erros.naoEncontrado('Agendamento não encontrado');
-    const nivel = await this.politicaPet.nivel(usuario, agendamento.petId);
-    if (nivel !== 'RESPONSAVEL_PRINCIPAL' && nivel !== 'RESPONSAVEL')
-      throw Erros.semPermissao('Só o responsável pelo pet paga o serviço.');
-    if (agendamento.status === 'CANCELADO') {
-      throw Erros.conflito(
-        'AGENDAMENTO_INATIVO',
-        'Este agendamento foi cancelado.',
-      );
-    }
+    const cobravel = pedido.agendamentoId
+      ? await this.agendamentoCobravel(usuario, pedido.agendamentoId)
+      : await this.assinaturaCobravel(usuario, pedido.assinaturaId!);
+    const alvo = pedido.agendamentoId
+      ? { agendamentoId: pedido.agendamentoId }
+      : { assinaturaId: pedido.assinaturaId };
     const pago = await this.prisma.pagamento.count({
-      where: { agendamentoId: agendamento.id, status: 'ACEITO' },
+      where: { ...alvo, status: 'ACEITO' },
     });
     if (pago > 0) {
       throw Erros.conflito(
         'PAGAMENTO_JA_REALIZADO',
-        'Este serviço já foi pago.',
+        pedido.agendamentoId
+          ? 'Este serviço já foi pago.'
+          : 'Esta assinatura já foi paga.',
       );
     }
 
     // Uma tentativa que não chegou ao gateway é reaproveitada, com a mesma chave de idempotência.
     const provisorio = await this.prisma.pagamento.findFirst({
       where: {
-        agendamentoId: agendamento.id,
+        ...alvo,
         pagadorId: usuario.sub,
         status: 'PENDENTE',
         codigoTransacao: { startsWith: PREFIXO_PROVISORIO },
@@ -132,13 +125,13 @@ export class PagamentosService {
             create: {
               id,
               codigoTransacao: `${PREFIXO_PROVISORIO}${id}`,
-              valor: agendamento.precoContratado,
+              valor: cobravel.valor,
               dataHora: new Date(),
               metodo: pedido.metodo,
               status: 'PENDENTE',
               pagadorId: usuario.sub,
-              recebedorId: agendamento.servico.empresaId,
-              agendamentoId: agendamento.id,
+              recebedorId: cobravel.recebedorId,
+              ...alvo,
             },
           });
 
@@ -152,7 +145,7 @@ export class PagamentosService {
         pagamentoId: pagamento.id,
         valor: pagamento.valor.toNumber(),
         metodo: pedido.metodo,
-        descricao: `${agendamento.servico.nome} - ${agendamento.pet.nome}`,
+        descricao: cobravel.descricao,
         emailPagador: email,
         cartao: cartao
           ? {
@@ -186,6 +179,48 @@ export class PagamentosService {
         atual.status === 'RECUSADO'
           ? motivoRecusa(cobranca.detalhe)
           : undefined,
+    };
+  }
+
+  /** Serviço agendado: o responsável paga o preço contratado à empresa (RN27). */
+  private async agendamentoCobravel(
+    usuario: UsuarioAutenticado,
+    agendamentoId: string,
+  ) {
+    const agendamento = await this.prisma.agendamento.findUnique({
+      where: { id: agendamentoId },
+      include: {
+        servico: { select: { nome: true, empresaId: true } },
+        pet: { select: { nome: true } },
+      },
+    });
+    if (!agendamento) throw Erros.naoEncontrado('Agendamento não encontrado');
+    const nivel = await this.politicaPet.nivel(usuario, agendamento.petId);
+    if (nivel !== 'RESPONSAVEL_PRINCIPAL' && nivel !== 'RESPONSAVEL')
+      throw Erros.semPermissao('Só o responsável pelo pet paga o serviço.');
+    if (agendamento.status === 'CANCELADO') {
+      throw Erros.conflito(
+        'AGENDAMENTO_INATIVO',
+        'Este agendamento foi cancelado.',
+      );
+    }
+    return {
+      valor: agendamento.precoContratado,
+      descricao: `${agendamento.servico.nome} - ${agendamento.pet.nome}`,
+      recebedorId: agendamento.servico.empresaId as string | null,
+    };
+  }
+
+  /** Assinatura PANTERA pendente do próprio tutor, paga à plataforma. */
+  private async assinaturaCobravel(
+    usuario: UsuarioAutenticado,
+    assinaturaId: string,
+  ) {
+    await this.assinaturas.pendenteDoTutor(usuario.sub, assinaturaId);
+    return {
+      valor: this.assinaturas.precoMensal,
+      descricao: 'Assinatura PANTERA - 1 mês',
+      recebedorId: null as string | null,
     };
   }
 
@@ -232,6 +267,9 @@ export class PagamentosService {
           ? motivoRecusa(situacao.detalhe)
           : undefined,
     });
+    if (situacao.status === 'ACEITO' && pagamento.assinaturaId) {
+      await this.assinaturas.ativar(pagamento.assinaturaId);
+    }
     if (situacao.status === 'ACEITO' && pagamento.agendamento) {
       await this.fila.enviar(
         'PAGAMENTO_CONFIRMADO',
