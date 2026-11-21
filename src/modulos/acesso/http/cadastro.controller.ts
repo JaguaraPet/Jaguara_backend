@@ -36,6 +36,6 @@ export class CadastroController {
   @Post('confirmacao')
   @HttpCode(204)
   async confirmar(@Body() dto: ConfirmacaoDto): Promise<void> {
-    await this.cadastro.confirmarEmail(dto.token);
+    await this.cadastro.confirmarEmail(dto.token, dto.senha);
   }
 }

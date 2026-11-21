@@ -1,9 +1,16 @@
 /** Mensagens de e-mail transacional (ARQ-03, seção 3.3). */
-export type TipoEmail = 'CONFIRMACAO_CADASTRO' | 'RECUPERACAO_SENHA';
+export type TipoEmail =
+  'CONFIRMACAO_CADASTRO' | 'RECUPERACAO_SENHA' | 'CONVITE_FUNCIONARIO';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
   RECUPERACAO_SENHA: { nome: string; link: string; validadeMinutos: number };
+  CONVITE_FUNCIONARIO: {
+    nome: string;
+    empresa: string;
+    link: string;
+    validadeHoras: number;
+  };
 }
 
 export interface PedidoEmail<T extends TipoEmail = TipoEmail> {
@@ -108,6 +115,30 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           { texto: 'Redefinir senha', link: d.link },
           `O link vale por ${d.validadeMinutos} minutos e só pode ser usado uma vez. Se você não pediu, ignore este e-mail: sua senha continua a mesma.`,
+        ),
+      };
+    }
+    case 'CONVITE_FUNCIONARIO': {
+      const d = pedido.dados as DadosEmail['CONVITE_FUNCIONARIO'];
+      const nome = escaparHtml(d.nome);
+      const empresa = escaparHtml(d.empresa);
+      return {
+        para: pedido.para,
+        assunto: `${d.empresa} convidou você para o Jaguara`,
+        texto: [
+          `Olá, ${d.nome}!`,
+          `${d.empresa} cadastrou você como funcionário no Jaguara Enterprise. Para ativar seu acesso, confirme seu e-mail e crie sua senha pelo link abaixo:`,
+          d.link,
+          `O link vale por ${d.validadeHoras} horas. Se você não conhece esta empresa, ignore este e-mail.`,
+        ].join('\n\n'),
+        html: layout(
+          'Você foi convidado',
+          [
+            `Olá, ${nome}!`,
+            `${empresa} cadastrou você como funcionário no Jaguara Enterprise. Confirme seu e-mail e crie sua senha para entrar.`,
+          ],
+          { texto: 'Criar minha senha', link: d.link },
+          `O link vale por ${d.validadeHoras} horas. Se você não conhece esta empresa, ignore este e-mail.`,
         ),
       };
     }

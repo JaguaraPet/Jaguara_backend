@@ -116,6 +116,15 @@ Cada rota declara o acesso com um destes decoradores, e um teste automatizado fa
 
 Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e funcionários só vejam dados da própria empresa. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA` ou `SEM_PERMISSAO`).
 
+## Funcionários (UC-19)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/empresas/{empresaId}/funcionarios` | Lista a equipe (permissão `funcionario:ler`). |
+| `POST /v1/empresas/{empresaId}/funcionarios` | Cadastra com um perfil da própria empresa e envia o convite por e-mail. O funcionário confirma o e-mail e cria a senha em `POST /v1/auth/confirmacao` (campo `senha`). |
+| `PATCH /v1/funcionarios/{funcionarioId}` | Troca o perfil de acesso (UC-16) e encerra as sessões abertas, para as permissões novas valerem na hora. |
+| `DELETE /v1/funcionarios/{funcionarioId}` | Desliga o funcionário: conta inativa e todas as sessões revogadas na hora (RN23). |
+
 ## Filas e e-mail
 
 O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.
