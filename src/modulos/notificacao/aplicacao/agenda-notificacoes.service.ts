@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { configuracaoEfetiva, programar } from '../dominio/programacao';
+import type { Configuracao, TipoEvento } from '../dominio/programacao';
 
 export type OrigemNotificacao =
   'VACINACAO' | 'TRATAMENTO' | 'EVENTO' | 'ALIMENTACAO' | 'AGENDAMENTO';
@@ -8,14 +10,17 @@ export interface NovaNotificacao {
   destinatarioId: string;
   titulo: string;
   mensagem: string;
-  dataProgramada: Date;
+  /** Quando o compromisso acontece; a antecedência do usuário é descontada (RN37). */
+  dataReferencia: Date;
+  tipoEvento: TipoEvento;
   origemTipo: OrigemNotificacao;
   origemId: string;
 }
 
 /**
- * Agenda as notificações automáticas na tabela `notificacao` (status AGENDADA). O worker
- * dispara as que vencem (UC-31, DS-06); cancelar a origem cancela os lembretes pendentes.
+ * Agenda as notificações automáticas na tabela `notificacao` (status AGENDADA) com o canal e
+ * a antecedência que cada destinatário configurou (RN37, DS-06). O worker dispara as que
+ * vencem; cancelar a origem cancela os lembretes pendentes.
  */
 @Injectable()
 export class AgendaNotificacoesService {
@@ -32,14 +37,40 @@ export class AgendaNotificacoesService {
 
   async agendar(notificacoes: NovaNotificacao[]): Promise<number> {
     if (notificacoes.length === 0) return 0;
-    const { count } = await this.prisma.notificacao.createMany({
-      data: notificacoes.map((n) => ({
-        ...n,
-        canal: 'PUSH' as const,
-        status: 'AGENDADA' as const,
-        tentativas: 0,
-      })),
+    const configuracoes = await this.prisma.configuracaoNotificacao.findMany({
+      where: {
+        usuarioId: {
+          in: [...new Set(notificacoes.map((n) => n.destinatarioId))],
+        },
+      },
     });
+    const porChave = new Map<string, Configuracao>(
+      configuracoes.map((c) => [`${c.usuarioId}:${c.tipoEvento}`, c]),
+    );
+    const agora = new Date();
+    const dados = notificacoes.flatMap((n) => {
+      const configuracao = configuracaoEfetiva(
+        n.tipoEvento,
+        porChave.get(`${n.destinatarioId}:${n.tipoEvento}`),
+      );
+      const dataProgramada = programar(n.dataReferencia, configuracao, agora);
+      if (!dataProgramada) return [];
+      return [
+        {
+          destinatarioId: n.destinatarioId,
+          titulo: n.titulo,
+          mensagem: n.mensagem,
+          origemTipo: n.origemTipo,
+          origemId: n.origemId,
+          dataProgramada,
+          canal: configuracao.canal,
+          status: 'AGENDADA' as const,
+          tentativas: 0,
+        },
+      ];
+    });
+    if (dados.length === 0) return 0;
+    const { count } = await this.prisma.notificacao.createMany({ data: dados });
     return count;
   }
 

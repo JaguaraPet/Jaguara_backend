@@ -1,9 +1,4 @@
-import {
-  cruzam,
-  fimDoEvento,
-  horarioDoLembrete,
-  tipoDaCategoria,
-} from './evento';
+import { cruzam, fimDoEvento, tipoDaCategoria } from './evento';
 
 describe('calendário do pet (UC-10, RN14, RN37)', () => {
   const h = (hora: string) => new Date(`2026-11-21T${hora}:00-03:00`);
@@ -26,12 +21,6 @@ describe('calendário do pet (UC-10, RN14, RN37)', () => {
     expect(cruzam(consulta, { inicio: h('09:00'), fim: h('10:00') })).toBe(
       false,
     );
-  });
-
-  it('CT-10-01: deve lembrar uma hora antes, se ainda der tempo', () => {
-    expect(horarioDoLembrete(h('10:00'), h('08:00'))).toEqual(h('09:00'));
-    expect(horarioDoLembrete(h('10:00'), h('09:30'))).toBeNull();
-    expect(horarioDoLembrete(h('10:00'), h('08:00'), 15)).toEqual(h('09:45'));
   });
 
   it('deve tirar o tipo do evento da categoria do serviço', () => {

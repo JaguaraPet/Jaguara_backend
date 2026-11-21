@@ -6,7 +6,7 @@ import { AgendaNotificacoesService } from '../../notificacao/aplicacao/agenda-no
 import {
   dataBrasileira,
   hojeBrasilia,
-  lembreteProximaDose,
+  instanteBrasilia,
 } from '../../notificacao/dominio/lembretes';
 import { validarVacinacao } from '../dominio/vacinacao';
 import { PoliticaSaude } from './politica-saude';
@@ -90,20 +90,19 @@ export class VacinacoesService {
     });
 
     if (dados.dataProximaDose) {
-      const quando = lembreteProximaDose(dados.dataProximaDose, new Date());
-      if (quando) {
-        const destinatarios = await this.agenda.responsaveisDoPet(petId);
-        await this.agenda.agendar(
-          destinatarios.map((destinatarioId) => ({
-            destinatarioId,
-            titulo: `Vacina de ${criado.pet.nome} amanhã`,
-            mensagem: `A próxima dose de ${dados.nomeVacina.trim()} de ${criado.pet.nome} é em ${dataBrasileira(dados.dataProximaDose!)}.`,
-            dataProgramada: quando,
-            origemTipo: 'VACINACAO',
-            origemId: criado.id,
-          })),
-        );
-      }
+      // Referência às 9h do dia da dose; a antecedência padrão da vacina é um dia (RN37).
+      const destinatarios = await this.agenda.responsaveisDoPet(petId);
+      await this.agenda.agendar(
+        destinatarios.map((destinatarioId) => ({
+          destinatarioId,
+          titulo: `Vacina de ${criado.pet.nome}`,
+          mensagem: `A próxima dose de ${dados.nomeVacina.trim()} de ${criado.pet.nome} é em ${dataBrasileira(dados.dataProximaDose!)}.`,
+          dataReferencia: instanteBrasilia(dados.dataProximaDose!),
+          tipoEvento: 'VACINA',
+          origemTipo: 'VACINACAO',
+          origemId: criado.id,
+        })),
+      );
     }
     return this.resposta({ ...criado.vacinacao!, registroClinico: criado });
   }

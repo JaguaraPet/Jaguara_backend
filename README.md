@@ -258,7 +258,6 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `POST /v1/tratamentos/{tratamentoId}/finalizacao` | Finaliza hoje e cancela os lembretes que ainda não saíram (CT-14-02). |
 | `GET` e `POST /v1/pets/{petId}/exames` | Histórico e registro de exames (UC-36), com laudo opcional que é um documento do próprio pet. A resposta diz só se há arquivo; o download sai por URL assinada. A empresa precisa dos escopos `EXAMES` e `EDICAO_CLINICA` para registrar (CT-36-02). |
 
-Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificacoesService`); o worker dispara os que vencem.
 
 ## Calendário do pet (UC-10)
 
@@ -286,6 +285,17 @@ Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificac
 ## Auditoria e monitoramento (RN31, UC-25)
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
+
+## Notificações automáticas (UC-31)
+
+Vacinas, tratamentos e eventos agendam lembretes para os responsáveis do pet na tabela `notificacao` (status AGENDADA), com o canal e a antecedência que cada pessoa configurou para o tipo de compromisso (RN37). Sem configuração vale o padrão: push, um dia antes para vacina, cirurgia e hospedagem, uma hora antes para consultas e compromissos e na hora para remédios.
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/notificacoes` | As 50 notificações mais recentes do usuário, enviadas ou agendadas. |
+| `GET /v1/notificacoes/configuracoes` e `PUT .../{tipoEvento}` | Canal (push ou e-mail), antecedência de 0 a 7 dias e liga/desliga por tipo (CT-31-01). |
+
+O worker confere a cada minuto as notificações vencidas e envia por push ou pela fila de e-mail. Na falha, tenta de novo com espera de 1, 2, 4 e 8 minutos; na quinta falha, a notificação fica como FALHOU e vai para a auditoria com nível ALERTA (CT-31-02, DS-06). Enquanto o push do Expo não está ligado, o envio push só registra no log.
 
 ## Filas e e-mail
 
