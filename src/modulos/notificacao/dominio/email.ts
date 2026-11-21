@@ -5,7 +5,8 @@ export type TipoEmail =
   | 'CONVITE_FUNCIONARIO'
   | 'TERMO_CLIENTE'
   | 'COMPROVANTE_CONSENTIMENTO'
-  | 'AGENDAMENTO_CRIADO';
+  | 'AGENDAMENTO_CRIADO'
+  | 'PAGAMENTO_CONFIRMADO';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -34,6 +35,12 @@ export interface DadosEmail {
     pet: string;
     servico: string;
     dataHora: string;
+  };
+  PAGAMENTO_CONFIRMADO: {
+    nome: string;
+    pet: string;
+    servico: string;
+    valor: string;
   };
 }
 
@@ -229,6 +236,28 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           null,
           'Acompanhe e cancele pelo app do Jaguara.',
+        ),
+      };
+    }
+    case 'PAGAMENTO_CONFIRMADO': {
+      const d = pedido.dados as DadosEmail['PAGAMENTO_CONFIRMADO'];
+      const frase = `${d.valor} de ${d.servico} para ${d.pet}`;
+      return {
+        para: pedido.para,
+        assunto: `Pagamento confirmado: ${d.servico} para ${d.pet}`,
+        texto: [
+          `Olá, ${d.nome}!`,
+          `Recebemos a confirmação do pagamento de ${frase}.`,
+          'O comprovante fica no app do Jaguara, em Pagamentos.',
+        ].join('\n\n'),
+        html: layout(
+          'Pagamento confirmado',
+          [
+            `Olá, ${escaparHtml(d.nome)}!`,
+            `Recebemos a confirmação do pagamento de ${escaparHtml(frase)}.`,
+          ],
+          null,
+          'O comprovante fica no app do Jaguara, em Pagamentos.',
         ),
       };
     }

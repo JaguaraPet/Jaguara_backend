@@ -89,6 +89,13 @@ export const Erros = {
       'Recurso do plano PANTERA',
       'Assine o PANTERA para conversar com o assistente virtual.',
     ),
+  gatewayIndisponivel: () =>
+    new ErroNegocio(
+      HttpStatus.SERVICE_UNAVAILABLE,
+      'GATEWAY_INDISPONIVEL',
+      'Pagamento indisponível no momento',
+      'Não conseguimos falar com o meio de pagamento. Nada foi cobrado; tente de novo em instantes.',
+    ),
   limiteAssistente: (limite: number) =>
     new ErroNegocio(
       HttpStatus.TOO_MANY_REQUESTS,

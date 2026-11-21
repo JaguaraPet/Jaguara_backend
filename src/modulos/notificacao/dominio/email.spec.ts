@@ -64,4 +64,15 @@ describe('montarEmail', () => {
     expect(msg.texto).toContain('primeiro-acesso?token=1');
     expect(msg.html).toContain('Criar minha senha');
   });
+
+  it('deve trazer valor, serviço e pet quando confirma o pagamento', () => {
+    const msg = montarEmail({
+      tipo: 'PAGAMENTO_CONFIRMADO',
+      para: 'ana@exemplo.com',
+      dados: { nome: 'Ana', pet: 'Thor', servico: 'Banho', valor: 'R$ 60,00' },
+    });
+    expect(msg.assunto).toBe('Pagamento confirmado: Banho para Thor');
+    expect(msg.texto).toContain('R$ 60,00 de Banho para Thor');
+    expect(msg.html).toContain('Pagamento confirmado');
+  });
 });

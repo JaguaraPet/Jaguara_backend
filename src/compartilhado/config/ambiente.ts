@@ -41,6 +41,15 @@ export const esquemaAmbiente = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   IA_MODELO: z.string().optional(),
   IA_LIMITE_DIARIO: z.coerce.number().int().positive().default(30),
+
+  // Gateway de pagamento (ARQ-03, seção 3.1). Sem token, o gateway é simulado.
+  MP_ACCESS_TOKEN: z.string().optional(),
+  MP_WEBHOOK_SEGREDO: z.string().optional(),
+  // Vazio no .env.example conta como não informado.
+  URL_API_PUBLICA: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.url().optional(),
+  ),
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;
