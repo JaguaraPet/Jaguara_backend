@@ -143,6 +143,7 @@ A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, p
 | `GET /v1/empresas/{empresaId}/servicos` | Catálogo da empresa. Tutores e outras empresas veem só os serviços ativos (UC-33); a própria empresa vê todos. |
 | `GET /v1/empresas` e `GET /v1/empresas/{empresaId}` | Busca pública para o tutor (UC-33), por nome da empresa ou do serviço, tipo, categoria e cidade, com paginação. Só aparecem empresas ativas com serviços ativos, e só dados públicos (sem CNPJ nem e-mail). |
 | `POST /v1/empresas/{empresaId}/servicos` e `PATCH /v1/servicos/{servicoId}` | Cadastra, edita e desativa serviços (`servico:editar`). O preço contratado fica no agendamento, então mudar o preço não altera o que já foi contratado (RN27). |
+| `GET` e `POST /v1/empresas/{empresaId}/horarios-atuacao`, `DELETE /v1/horarios-atuacao/{horarioId}` | Horários de atuação de cada profissional ou recurso (UC-24): um dos dois por horário (RC-20) e sem sobreposição no mesmo dia (RN29). |
 | `GET` e `POST /v1/empresas/{empresaId}/recursos`, `PATCH /v1/recursos/{recursoId}` | Salas, equipamentos, baias e veículos da empresa (`recurso:editar`). Rotas acrescentadas ao contrato na versão 1.4.0. |
 
 ## Clientes da empresa (UC-21)

@@ -102,6 +102,42 @@ export async function criarTutor(
   return usuario.id;
 }
 
+/** Funcionário ativo com o perfil Profissional da empresa (veterinário, tosador...). */
+export async function criarProfissional(
+  prisma: PrismaClient,
+  empresaId: string,
+  email: string,
+  nome = 'Profissional Teste',
+): Promise<string> {
+  const perfil = await prisma.perfilAcesso.findFirstOrThrow({
+    where: { empresaId, nome: 'Profissional' },
+  });
+  const usuario = await prisma.usuario.create({
+    data: {
+      email,
+      senhaHash: await hash(SENHA_TESTE),
+      emailConfirmado: true,
+      status: 'ATIVA',
+      tentativasLoginFalhas: 0,
+      dataCadastro: new Date(),
+      perfilId: perfil.id,
+    },
+  });
+  const cifragem = new Cifragem(process.env.CHAVE_CRIPTOGRAFIA ?? '');
+  const cpf = cpfTeste();
+  await prisma.funcionarioEnterprise.create({
+    data: {
+      id: usuario.id,
+      nome,
+      cpfCifrado: cifragem.cifrar(cpf),
+      cpfHash: cifragem.indiceCego(cpf),
+      ativo: true,
+      empresaId,
+    },
+  });
+  return usuario.id;
+}
+
 /** Entra e devolve o access token. */
 export async function entrar(
   app: INestApplication<App>,
