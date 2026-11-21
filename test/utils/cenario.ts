@@ -149,3 +149,65 @@ export async function entrar(
     .expect(200);
   return (resposta.body as { accessToken: string }).accessToken;
 }
+
+/** Cria um pet com o tutor como responsável principal (raça e espécie reaproveitadas). */
+export async function criarPet(
+  prisma: PrismaClient,
+  tutorId: string,
+  nome = 'Thor',
+): Promise<string> {
+  const especie =
+    (await prisma.especie.findFirst({ where: { nome: 'Cachorro' } })) ??
+    (await prisma.especie.create({ data: { nome: 'Cachorro' } }));
+  const raca =
+    (await prisma.raca.findFirst({ where: { especieId: especie.id } })) ??
+    (await prisma.raca.create({
+      data: { nome: 'SRD', especieId: especie.id },
+    }));
+  const pet = await prisma.pet.create({
+    data: {
+      nome,
+      racaId: raca.id,
+      sexo: 'MACHO',
+      castrado: true,
+      status: 'ATIVO',
+      responsavelPet: {
+        create: {
+          tutorId,
+          tipo: 'PRINCIPAL',
+          ativo: true,
+          dataVinculo: new Date(),
+        },
+      },
+    },
+  });
+  return pet.id;
+}
+
+/** Compartilha o pet com a empresa nos escopos informados (RN15). */
+export async function compartilhar(
+  prisma: PrismaClient,
+  petId: string,
+  empresaId: string,
+  escopos: (
+    | 'PERFIL_BASICO'
+    | 'VACINAS'
+    | 'EXAMES'
+    | 'MEDICAMENTOS'
+    | 'ALERGIAS'
+    | 'DOCUMENTOS'
+    | 'LINHA_DO_TEMPO'
+    | 'EDICAO_CLINICA'
+  )[],
+): Promise<void> {
+  await prisma.compartilhamentoPet.create({
+    data: {
+      petId,
+      empresaId,
+      token: `compartilhamento-${petId}-${empresaId}`,
+      escopos,
+      status: 'ATIVO',
+      dataConcessao: new Date(),
+    },
+  });
+}
