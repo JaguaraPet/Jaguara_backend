@@ -306,6 +306,17 @@ Vacinas, tratamentos e eventos agendam lembretes para os responsáveis do pet na
 
 O worker confere a cada minuto as notificações vencidas e envia por push ou pela fila de e-mail. Na falha, tenta de novo com espera de 1, 2, 4 e 8 minutos; na quinta falha, a notificação fica como FALHOU e vai para a auditoria com nível ALERTA (CT-31-02, DS-06). Enquanto o push do Expo não está ligado, o envio push só registra no log.
 
+## Integrações e webhooks de saída (UC-27, UC-30)
+
+Só administradores com `admin:integracoes` (RN33), com auditoria CRITICO em cada mudança.
+
+| Rota | Uso |
+|---|---|
+| `GET`, `POST` e `PATCH /v1/admin/integracoes` | Provedores externos; as credenciais ficam cifradas e nunca voltam na resposta. `POST .../{id}/teste` confere se o serviço responde. |
+| `GET`, `POST` e `PATCH /v1/admin/webhooks` | Webhooks de parceiros: só URL HTTPS pública com HMAC-SHA256 (RN36, CT-30-02). Sem segredo informado, a API gera um e mostra só na criação. |
+
+Eventos publicados: `solicitacao.criada`, `agendamento.criado`, `agendamento.cancelado`, `atendimento.finalizado` e `pagamento.confirmado` (o `solicitacao.status_alterado` entra com o aceite e a recusa). O worker envia `POST` JSON com `X-Jaguara-Evento`, `X-Jaguara-Id` (para descartar duplicatas) e `X-Jaguara-Assinatura: t=<segundos>,v1=<HMAC-SHA256 de "t.corpo">`, com até 5 tentativas e espera exponencial; a última falha vai para a auditoria (ARQ-03, seção 3.7). Os dados do evento levam só identificadores e situação, sem dados pessoais.
+
 ## Filas e e-mail
 
 O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.

@@ -4,6 +4,7 @@ import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import {
   alteracoes,
   jaOcorreu,
@@ -32,6 +33,7 @@ export class AtendimentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
+    private readonly webhooks: PublicadorWebhook,
   ) {}
 
   /**
@@ -123,7 +125,15 @@ export class AtendimentosService {
         data: { status: 'REALIZADO' },
       }),
     ]);
-    return this.resposta(criado);
+    const resposta = this.resposta(criado);
+    await this.webhooks.publicar('atendimento.finalizado', {
+      atendimentoId: criado.id,
+      agendamentoId,
+      empresaId: agendamento.servico.empresaId,
+      total: resposta.total,
+      finalizadoEm: resposta.finalizadoEm,
+    });
+    return resposta;
   }
 
   /** Consulta pela empresa do agendamento. */

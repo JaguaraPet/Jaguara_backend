@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import { CanalTempoReal } from '../../comunicacao/aplicacao/canal-tempo-real';
 import { salaEmpresa, salaUsuario } from '../../comunicacao/dominio/conversa';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
@@ -53,6 +54,7 @@ export class PagamentosService {
     private readonly canal: CanalTempoReal,
     @Inject(GATEWAY_PAGAMENTO) private readonly gateway: GatewayPagamento,
     private readonly assinaturas: AssinaturasService,
+    private readonly webhooks: PublicadorWebhook,
   ) {}
 
   /**
@@ -267,6 +269,16 @@ export class PagamentosService {
           ? motivoRecusa(situacao.detalhe)
           : undefined,
     });
+    if (situacao.status === 'ACEITO' && pagamento.recebedorId) {
+      await this.webhooks.publicar('pagamento.confirmado', {
+        pagamentoId: pagamento.id,
+        agendamentoId: pagamento.agendamentoId,
+        empresaId: pagamento.recebedorId,
+        valor: pagamento.valor.toNumber(),
+        metodo: pagamento.metodo,
+        dataConfirmacao: confirmadoEm?.toISOString(),
+      });
+    }
     if (situacao.status === 'ACEITO' && pagamento.assinaturaId) {
       await this.assinaturas.ativar(pagamento.assinaturaId);
     }

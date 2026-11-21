@@ -1,3 +1,4 @@
+import type { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import type { AuditoriaService } from '../../../compartilhado/auditoria/auditoria.service';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
@@ -70,6 +71,7 @@ describe('AtendimentosService (UC-23)', () => {
     const servico = new AtendimentosService(
       prisma as unknown as PrismaService,
       auditoria as unknown as AuditoriaService,
+      { publicar: jest.fn() } as unknown as PublicadorWebhook,
     );
     return { prisma, auditoria, servico };
   };

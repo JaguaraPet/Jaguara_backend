@@ -211,3 +211,35 @@ export async function compartilhar(
     },
   });
 }
+
+/**
+ * Administrador da plataforma. Com `permissoes`, usa um perfil global próprio só com essas
+ * permissões (para testar o acesso negado, RN33); sem elas, o perfil Administrador completo.
+ */
+export async function criarAdministrador(
+  prisma: PrismaClient,
+  email: string,
+  permissoes?: string[],
+): Promise<string> {
+  let perfilNome = 'Administrador';
+  if (permissoes) {
+    perfilNome = `Admin teste ${email}`;
+    const encontradas = await prisma.permissao.findMany({
+      where: { codigo: { in: permissoes } },
+    });
+    await prisma.perfilAcesso.create({
+      data: {
+        nome: perfilNome,
+        escopo: 'GLOBAL',
+        perfilPermissao: {
+          create: encontradas.map((p) => ({ permissaoId: p.id })),
+        },
+      },
+    });
+  }
+  const usuario = await conta(prisma, email, perfilNome);
+  await prisma.administrador.create({
+    data: { id: usuario.id, nome: 'Administrador Teste' },
+  });
+  return usuario.id;
+}
