@@ -4,7 +4,8 @@ export type TipoEmail =
   | 'RECUPERACAO_SENHA'
   | 'CONVITE_FUNCIONARIO'
   | 'TERMO_CLIENTE'
-  | 'COMPROVANTE_CONSENTIMENTO';
+  | 'COMPROVANTE_CONSENTIMENTO'
+  | 'AGENDAMENTO_CRIADO';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -27,6 +28,12 @@ export interface DadosEmail {
     versao: string;
     dataHora: string;
     link: string;
+  };
+  AGENDAMENTO_CRIADO: {
+    nome: string;
+    pet: string;
+    servico: string;
+    dataHora: string;
   };
 }
 
@@ -59,7 +66,7 @@ function escaparHtml(valor: string): string {
 function layout(
   titulo: string,
   paragrafos: string[],
-  botao: { texto: string; link: string },
+  botao: { texto: string; link: string } | null,
   rodape: string,
 ): string {
   const corpo = paragrafos
@@ -76,9 +83,13 @@ function layout(
         <p style="margin:0 0 24px;font-size:22px;font-weight:700;color:${COR_PRIMARIA}">Jaguara</p>
         <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${COR_TEXTO}">${titulo}</h1>
         ${corpo}
-        <p style="margin:24px 0">
+        ${
+          botao
+            ? `<p style="margin:24px 0">
           <a href="${escaparHtml(botao.link)}" style="display:inline-block;padding:12px 24px;background:${COR_PRIMARIA};color:#FFFFFF;text-decoration:none;border-radius:8px;font-weight:600">${botao.texto}</a>
-        </p>
+        </p>`
+            : ''
+        }
         <p style="margin:0;font-size:14px;line-height:1.5;color:${COR_TEXTO_SECUNDARIO}">${rodape}</p>
       </td></tr>
     </table>
@@ -200,6 +211,24 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           { texto: 'Ver ou revogar', link: d.link },
           'Você pode revogar quando quiser por este link, sem precisar de conta.',
+        ),
+      };
+    }
+    case 'AGENDAMENTO_CRIADO': {
+      const d = pedido.dados as DadosEmail['AGENDAMENTO_CRIADO'];
+      const frase = `${d.servico} para ${d.pet} em ${d.dataHora}.`;
+      return {
+        para: pedido.para,
+        assunto: `Agendamento confirmado: ${d.servico} para ${d.pet}`,
+        texto: `Olá, ${d.nome}!\n\nA empresa agendou ${frase}\n\nAcompanhe e cancele pelo app do Jaguara.`,
+        html: layout(
+          'Agendamento confirmado',
+          [
+            `Olá, ${escaparHtml(d.nome)}!`,
+            `A empresa agendou ${escaparHtml(frase)}`,
+          ],
+          null,
+          'Acompanhe e cancele pelo app do Jaguara.',
         ),
       };
     }
