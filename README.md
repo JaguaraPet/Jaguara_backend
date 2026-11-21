@@ -125,11 +125,12 @@ Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e 
 | `PATCH /v1/funcionarios/{funcionarioId}` | Troca o perfil de acesso (UC-16) e encerra as sessões abertas, para as permissões novas valerem na hora. |
 | `DELETE /v1/funcionarios/{funcionarioId}` | Desliga o funcionário: conta inativa e todas as sessões revogadas na hora (RN23). |
 
-## Catálogo de serviços e recursos (UC-38)
+## Catálogo de serviços e recursos (UC-33 e UC-38)
 
 | Rota | Uso |
 |---|---|
 | `GET /v1/empresas/{empresaId}/servicos` | Catálogo da empresa. Tutores e outras empresas veem só os serviços ativos (UC-33); a própria empresa vê todos. |
+| `GET /v1/empresas` e `GET /v1/empresas/{empresaId}` | Busca pública para o tutor (UC-33), por nome da empresa ou do serviço, tipo, categoria e cidade, com paginação. Só aparecem empresas ativas com serviços ativos, e só dados públicos (sem CNPJ nem e-mail). |
 | `POST /v1/empresas/{empresaId}/servicos` e `PATCH /v1/servicos/{servicoId}` | Cadastra, edita e desativa serviços (`servico:editar`). O preço contratado fica no agendamento, então mudar o preço não altera o que já foi contratado (RN27). |
 | `GET` e `POST /v1/empresas/{empresaId}/recursos`, `PATCH /v1/recursos/{recursoId}` | Salas, equipamentos, baias e veículos da empresa (`recurso:editar`). Rotas acrescentadas ao contrato na versão 1.4.0. |
 
