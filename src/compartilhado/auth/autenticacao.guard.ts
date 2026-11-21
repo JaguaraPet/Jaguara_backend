@@ -19,6 +19,8 @@ export class AutenticacaoGuard implements CanActivate {
   ) {}
 
   async canActivate(contexto: ExecutionContext): Promise<boolean> {
+    // O WebSocket valida o token na conexão (ChatGateway, ADR-011).
+    if (contexto.getType() !== 'http') return true;
     const publica = this.reflector.getAllAndOverride<boolean>(CHAVE_PUBLICA, [
       contexto.getHandler(),
       contexto.getClass(),

@@ -82,4 +82,11 @@ export const Erros = {
       'Sessão encerrada por inatividade',
       'Entre de novo para continuar.',
     ),
+  assinaturaNecessaria: () =>
+    new ErroNegocio(
+      HttpStatus.PAYMENT_REQUIRED,
+      'RN25_ASSINATURA_PANTERA',
+      'Recurso do plano PANTERA',
+      'Assine o PANTERA para conversar com o assistente virtual.',
+    ),
 };
