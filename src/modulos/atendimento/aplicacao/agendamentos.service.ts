@@ -213,12 +213,25 @@ export class AgendamentosService {
             : {}),
           ...(filtro.recursoId ? { recursoId: filtro.recursoId } : {}),
         },
+        include: {
+          servico: { select: { nome: true } },
+          pet: { select: { nome: true } },
+          profissional: { select: { nome: true } },
+          recurso: { select: { nome: true } },
+        },
         orderBy: { dataHoraInicio: 'asc' },
       }),
       this.solicitacoes.listar(usuario, 'PENDENTE'),
     ]);
     return {
-      agendamentos: agendamentos.map((a) => this.resposta(a)),
+      // Na agenda vão também os nomes, para a tela não precisar de outras consultas.
+      agendamentos: agendamentos.map((a) => ({
+        ...this.resposta(a),
+        servicoNome: a.servico.nome,
+        petNome: a.pet.nome,
+        profissionalNome: a.profissional?.nome,
+        recursoNome: a.recurso?.nome,
+      })),
       solicitacoesPendentes: pendentes.filter((s) => {
         const quando = new Date(s.dataHoraDesejada);
         return quando >= inicio && quando < fim;
