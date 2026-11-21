@@ -204,8 +204,11 @@ export class CadastroService {
     };
   }
 
-  /** RN02: o link ativa a conta uma única vez, dentro de 24 horas. */
-  async confirmarEmail(token: string): Promise<void> {
+  /**
+   * RN02: o link ativa a conta uma única vez, dentro de 24 horas. Funcionário convidado (UC-19)
+   * ainda não tem senha e a cria neste passo.
+   */
+  async confirmarEmail(token: string, senha?: string): Promise<void> {
     const registro = await this.prisma.tokenAcesso.findUnique({
       where: { token: this.hashToken(token) },
     });
@@ -216,6 +219,21 @@ export class CadastroService {
     ) {
       throw Erros.linkExpirado();
     }
+    const usuario = await this.prisma.usuario.findUniqueOrThrow({
+      where: { id: registro.usuarioId },
+      select: { senhaHash: true },
+    });
+    let senhaHash: string | undefined;
+    if (!usuario.senhaHash) {
+      if (!senha)
+        throw Erros.dadosInvalidos(
+          'senha',
+          'Crie uma senha para o primeiro acesso.',
+        );
+      this.validarSenha(senha);
+      senhaHash = await hash(senha);
+    }
+    const agora = new Date();
     await this.prisma.$transaction([
       this.prisma.tokenAcesso.update({
         where: { id: registro.id },
@@ -223,7 +241,16 @@ export class CadastroService {
       }),
       this.prisma.usuario.update({
         where: { id: registro.usuarioId },
-        data: { emailConfirmado: true, status: 'ATIVA' },
+        data: {
+          emailConfirmado: true,
+          status: 'ATIVA',
+          ...(senhaHash
+            ? {
+                senhaHash,
+                historicoSenha: { create: { senhaHash, criadaEm: agora } },
+              }
+            : {}),
+        },
       }),
     ]);
   }

@@ -125,4 +125,10 @@ export class ConfirmacaoDto {
   @IsNotEmpty()
   @MaxLength(255)
   token: string;
+
+  /** Obrigatória só no primeiro acesso de funcionário convidado, que ainda não tem senha. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  senha?: string;
 }

@@ -48,4 +48,20 @@ describe('montarEmail', () => {
     expect(msg.html).not.toContain('<script>');
     expect(msg.html).toContain('&lt;script&gt;');
   });
+
+  it('deve trazer o nome da empresa e o link quando monta o convite de funcionário', () => {
+    const msg = montarEmail({
+      tipo: 'CONVITE_FUNCIONARIO',
+      para: 'rafa@exemplo.com',
+      dados: {
+        nome: 'Rafa',
+        empresa: 'Clínica Patas',
+        link: 'http://x/primeiro-acesso?token=1',
+        validadeHoras: 24,
+      },
+    });
+    expect(msg.assunto).toContain('Clínica Patas');
+    expect(msg.texto).toContain('primeiro-acesso?token=1');
+    expect(msg.html).toContain('Criar minha senha');
+  });
 });

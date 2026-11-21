@@ -38,6 +38,7 @@ function criarPrisma(): Mocks & { $transaction: jest.Mock } {
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({ id: 'u1' }),
       update: jest.fn(),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ senhaHash: 'hash' }),
     },
     tutor: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
     empresaEnterprise: {
@@ -211,5 +212,25 @@ describe('CadastroService', () => {
     expect(await codigo(servico.confirmarEmail('abc'))).toBe('LINK_EXPIRADO');
     prisma.tokenAcesso.findUnique.mockResolvedValue(null);
     expect(await codigo(servico.confirmarEmail('abc'))).toBe('LINK_EXPIRADO');
+  });
+
+  it('deve exigir e gravar a senha quando o funcionário convidado confirma o e-mail', async () => {
+    prisma.tokenAcesso.findUnique.mockResolvedValue({
+      id: 'k1',
+      usuarioId: 'u1',
+      tipo: 'CONFIRMACAO_EMAIL',
+      utilizado: false,
+      expiraEm: new Date(Date.now() + 60_000),
+    });
+    prisma.usuario.findUniqueOrThrow.mockResolvedValue({ senhaHash: null });
+    expect(await codigo(servico.confirmarEmail('abc'))).toBe('DADOS_INVALIDOS');
+    await servico.confirmarEmail('abc', 'senhaForte1');
+    const dados = (
+      prisma.usuario.update.mock.calls[0] as [
+        { data: { senhaHash: string; status: string } },
+      ]
+    )[0].data;
+    expect(dados.status).toBe('ATIVA');
+    expect(dados.senhaHash).toMatch(/^\$argon2id\$/);
   });
 });
