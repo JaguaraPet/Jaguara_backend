@@ -28,6 +28,7 @@ import {
   Permissoes,
   SomenteEnterprise,
 } from '../../../compartilhado/auth/permissoes';
+import { Auditar } from '../../../compartilhado/auditoria/auditoria.interceptor';
 import {
   Publica,
   UsuarioAtual,
@@ -128,6 +129,7 @@ export class ClientesController {
 
   /** UC-21: cadastro com consentimento presencial ou pré-cadastro com link do termo (RN41). */
   @Permissoes('cliente:editar')
+  @Auditar({ acao: 'CLIENTE_CADASTRADO', entidade: 'Cliente', nivel: 'INFO' })
   @Post()
   cadastrar(
     @UsuarioAtual() usuario: UsuarioAutenticado,
@@ -152,6 +154,12 @@ export class ClientesController {
 
   /** Revogação pedida pelo cliente à empresa (RN41). */
   @Permissoes('cliente:editar')
+  @Auditar({
+    acao: 'CONSENTIMENTO_REVOGADO',
+    entidade: 'Cliente',
+    nivel: 'ALERTA',
+    parametro: 'clienteId',
+  })
   @Post(':clienteId/consentimento/revogacao')
   @HttpCode(204)
   async revogar(

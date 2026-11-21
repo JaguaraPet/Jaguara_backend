@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { hash } from '@node-rs/argon2';
 import { SessoesRevogadas } from '../../../compartilhado/auth/sessoes-revogadas';
+import { AuditoriaService } from '../../../compartilhado/auditoria/auditoria.service';
 import { Ambiente } from '../../../compartilhado/config/ambiente';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
@@ -80,6 +81,9 @@ describe('AutenticacaoService', () => {
       jwt as unknown as JwtService,
       revogadas as unknown as SessoesRevogadas,
       config as unknown as ConfigService<Ambiente, true>,
+      {
+        registrar: jest.fn().mockResolvedValue(undefined),
+      } as unknown as AuditoriaService,
     );
   });
 

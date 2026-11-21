@@ -145,6 +145,10 @@ Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e 
 
 Quando o cliente cria conta de tutor e confirma o e-mail, ele assume o cadastro e passa a ser o responsável principal dos pets cadastrados pela empresa (RC-33). Uma rotina diária do worker, às 3h, exclui pré-cadastros sem aceite há mais de 7 dias (CT-21-05).
 
+## Auditoria e monitoramento (RN31, UC-25)
+
+Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
+
 ## Filas e e-mail
 
 O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.
