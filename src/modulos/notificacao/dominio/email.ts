@@ -6,7 +6,8 @@ export type TipoEmail =
   | 'TERMO_CLIENTE'
   | 'COMPROVANTE_CONSENTIMENTO'
   | 'AGENDAMENTO_CRIADO'
-  | 'PAGAMENTO_CONFIRMADO';
+  | 'PAGAMENTO_CONFIRMADO'
+  | 'COMPARTILHAMENTO_PET';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -41,6 +42,13 @@ export interface DadosEmail {
     pet: string;
     servico: string;
     valor: string;
+  };
+  COMPARTILHAMENTO_PET: {
+    tutor: string;
+    pet: string;
+    secoes: string;
+    link: string;
+    validade: string | null;
   };
 }
 
@@ -258,6 +266,30 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           null,
           'O comprovante fica no app do Jaguara, em Pagamentos.',
+        ),
+      };
+    }
+    case 'COMPARTILHAMENTO_PET': {
+      const d = pedido.dados as DadosEmail['COMPARTILHAMENTO_PET'];
+      const prazo = d.validade
+        ? `O link vale até ${d.validade}.`
+        : 'O link vale até o tutor revogar.';
+      return {
+        para: pedido.para,
+        assunto: `${d.tutor} compartilhou o perfil de ${d.pet} com você`,
+        texto: [
+          `${d.tutor} compartilhou com você estas informações de ${d.pet} no Jaguara: ${d.secoes}.`,
+          'Veja pelo link abaixo, sem precisar de conta:',
+          d.link,
+          prazo,
+        ].join('\n\n'),
+        html: layout(
+          `Perfil de ${escaparHtml(d.pet)}`,
+          [
+            `${escaparHtml(d.tutor)} compartilhou com você estas informações de ${escaparHtml(d.pet)} no Jaguara: ${escaparHtml(d.secoes)}.`,
+          ],
+          { texto: 'Ver o perfil', link: d.link },
+          `${prazo} Se você não esperava este e-mail, ignore.`,
         ),
       };
     }

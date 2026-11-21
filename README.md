@@ -231,6 +231,14 @@ O pagamento só fica ACEITO com a confirmação do gateway (RN39, DS-05). Na con
 
 Quando o cliente cria conta de tutor e confirma o e-mail, ele assume o cadastro e passa a ser o responsável principal dos pets cadastrados pela empresa (RC-33). Uma rotina diária do worker, às 3h, exclui pré-cadastros sem aceite há mais de 7 dias (CT-21-05).
 
+## Compartilhamento do perfil do pet (UC-11)
+
+| Rota | Uso |
+|---|---|
+| `GET` e `POST /v1/pets/{petId}/compartilhamentos` | O responsável escolhe os escopos (RN15) e compartilha com uma empresa, que passa a ver no sistema, ou com um e-mail, que recebe um link de leitura sem conta. `EDICAO_CLINICA` só para empresas. O token do link é guardado só como hash. |
+| `POST /v1/compartilhamentos/{id}/revogacao` | Revoga na hora. |
+| `GET /v1/compartilhados/{token}` e `.../{secao}` | Página pública do link: nome do pet, perfil básico se liberado e as seções `vacinas`, `exames`, `medicamentos` e `alergias`, cada uma só com o seu escopo (CT-11-02). Link revogado ou vencido responde 410. |
+
 ## Saúde do pet
 
 Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saude:ler` para consultar e `saude:editar` para registrar; a empresa, com `atendimento:ler` ou `atendimento:editar` e o escopo que o tutor compartilhou (`VACINAS`, `EXAMES`, `MEDICAMENTOS`, `ALERGIAS`), mais `EDICAO_CLINICA` para registrar. Pet de cliente sem conta da própria empresa dispensa o escopo.

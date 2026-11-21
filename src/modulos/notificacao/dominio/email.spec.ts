@@ -75,4 +75,22 @@ describe('montarEmail', () => {
     expect(msg.texto).toContain('R$ 60,00 de Banho para Thor');
     expect(msg.html).toContain('Pagamento confirmado');
   });
+
+  it('deve listar o que foi compartilhado e o link no compartilhamento do pet', () => {
+    const msg = montarEmail({
+      tipo: 'COMPARTILHAMENTO_PET',
+      para: 'vet@exemplo.com',
+      dados: {
+        tutor: 'Ana',
+        pet: 'Thor',
+        secoes: 'vacinas, alergias e restrições',
+        link: 'http://x/compartilhado/abc',
+        validade: null,
+      },
+    });
+    expect(msg.assunto).toBe('Ana compartilhou o perfil de Thor com você');
+    expect(msg.texto).toContain('vacinas, alergias e restrições');
+    expect(msg.texto).toContain('até o tutor revogar');
+    expect(msg.html).toContain('http://x/compartilhado/abc');
+  });
 });
