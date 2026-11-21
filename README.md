@@ -212,6 +212,14 @@ O pagamento só fica ACEITO com a confirmação do gateway (RN39, DS-05). Na con
 | `MP_WEBHOOK_SEGREDO` | Segredo da assinatura dos webhooks, do painel do Mercado Pago. Sem ele, todo webhook é recusado. |
 | `URL_API_PUBLICA` | Endereço público da API, para o gateway chamar `/v1/webhooks/pagamentos`. |
 
+## Atendimentos (UC-23)
+
+| Rota | Uso |
+|---|---|
+| `POST /v1/agendamentos/{agendamentoId}/atendimento` | Registra e finaliza o atendimento de um agendamento que já começou. O serviço agendado é cobrado pelo preço contratado (RN27, CT-23-01) e serviços extras pelo preço atual; o agendamento vira REALIZADO. Exige `atendimento:editar`. |
+| `GET /v1/agendamentos/{agendamentoId}/atendimento` | Consulta o atendimento com os itens e o total. |
+| `PATCH /v1/atendimentos/{atendimentoId}` | Altera observações ou procedimentos só com `justificativa` (mínimo 10 caracteres). O antes, o depois e a justificativa vão para o log de auditoria com nível CRITICO (RN28, CT-23-02). |
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |
