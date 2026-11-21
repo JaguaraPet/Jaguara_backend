@@ -1165,6 +1165,7 @@ enum StatusAgendamento {
 }
 
 enum StatusAssinatura {
+  PENDENTE
   ATIVA
   CANCELADA
   EXPIRADA

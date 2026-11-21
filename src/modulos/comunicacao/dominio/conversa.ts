@@ -73,13 +73,17 @@ export function normalizarConteudo(
   return { ok: true, texto };
 }
 
-/** Assinatura ativa: status ATIVA e sem fim ou com fim a partir de hoje. */
+/**
+ * Assinatura vigente: ATIVA, ou CANCELADA ainda dentro do período pago (o cancelamento só
+ * impede a próxima cobrança), sem fim ou com fim a partir de hoje.
+ */
 export function assinaturaVigente(
   a: { plano: string; status: string; dataFim: Date | null },
   hoje: Date,
 ): boolean {
-  if (a.plano !== 'PANTERA' || a.status !== 'ATIVA') return false;
-  if (!a.dataFim) return true;
+  if (a.plano !== 'PANTERA') return false;
+  if (a.status !== 'ATIVA' && a.status !== 'CANCELADA') return false;
+  if (!a.dataFim) return a.status === 'ATIVA';
   return (
     a.dataFim.toISOString().slice(0, 10) >= hoje.toISOString().slice(0, 10)
   );

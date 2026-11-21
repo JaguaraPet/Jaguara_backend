@@ -42,6 +42,9 @@ export const esquemaAmbiente = z.object({
   IA_MODELO: z.string().optional(),
   IA_LIMITE_DIARIO: z.coerce.number().int().positive().default(30),
 
+  // Preço mensal do PANTERA enquanto a QA-02 não fecha o valor (GES-09).
+  PANTERA_PRECO_MENSAL: z.coerce.number().positive().default(14.9),
+
   // Gateway de pagamento (ARQ-03, seção 3.1). Sem token, o gateway é simulado.
   MP_ACCESS_TOKEN: z.string().optional(),
   MP_WEBHOOK_SEGREDO: z.string().optional(),

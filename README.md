@@ -220,6 +220,14 @@ O pagamento só fica ACEITO com a confirmação do gateway (RN39, DS-05). Na con
 | `GET /v1/agendamentos/{agendamentoId}/atendimento` | Consulta o atendimento com os itens e o total. |
 | `PATCH /v1/atendimentos/{atendimentoId}` | Altera observações ou procedimentos só com `justificativa` (mínimo 10 caracteres). O antes, o depois e a justificativa vão para o log de auditoria com nível CRITICO (RN28, CT-23-02). |
 
+## Assinatura PANTERA
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/assinaturas/atual` | Plano do tutor (gratuito ou PANTERA), a assinatura vigente ou pendente e o preço mensal (`PANTERA_PRECO_MENSAL`, padrão R$ 14,90 enquanto a QA-02 não fecha o valor). |
+| `POST /v1/assinaturas` | Cria a assinatura PENDENTE. O tutor paga com `POST /v1/pagamentos` e `assinaturaId`; na confirmação do gateway ela fica ATIVA por um mês, emendando no período em vigor quando é renovação (RN39). |
+| `POST /v1/assinaturas/atual/cancelamento` | Cancela; o acesso ao assistente continua até o fim do período pago. |
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |

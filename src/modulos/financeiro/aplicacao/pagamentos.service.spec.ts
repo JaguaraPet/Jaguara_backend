@@ -5,6 +5,7 @@ import { CanalTempoReal } from '../../comunicacao/aplicacao/canal-tempo-real';
 import type { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import type { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
 import { GatewayIndisponivel } from '../infra/gateway-mercado-pago';
+import type { AssinaturasService } from './assinaturas.service';
 import { EVENTO_PAGAMENTO, PagamentosService } from './pagamentos.service';
 
 describe('PagamentosService (UC-44, RN39)', () => {
@@ -75,6 +76,11 @@ describe('PagamentosService (UC-44, RN39)', () => {
       nivel: jest.fn().mockResolvedValue('RESPONSAVEL_PRINCIPAL'),
     };
     const fila = { enviar: jest.fn().mockResolvedValue(undefined) };
+    const assinaturas = {
+      precoMensal: 14.9,
+      pendenteDoTutor: jest.fn().mockResolvedValue({ id: 'as1' }),
+      ativar: jest.fn().mockResolvedValue(undefined),
+    };
     const canal = new CanalTempoReal();
     const emitir = jest.spyOn(canal, 'emitir');
     const servico = new PagamentosService(
@@ -83,8 +89,9 @@ describe('PagamentosService (UC-44, RN39)', () => {
       fila as unknown as FilaEmailService,
       canal,
       gateway,
+      assinaturas as unknown as AssinaturasService,
     );
-    return { prisma, gateway, politica, fila, emitir, servico };
+    return { prisma, gateway, politica, fila, emitir, servico, assinaturas };
   };
 
   const codigo = async (promessa: Promise<unknown>) => {
@@ -242,5 +249,47 @@ describe('PagamentosService (UC-44, RN39)', () => {
       .mockResolvedValueOnce({ codigoTransacao: '123', status: 'ACEITO' })
       .mockRejectedValueOnce(new GatewayIndisponivel());
     await expect(servico.reconciliar()).resolves.toBe(1);
+  });
+
+  it('deve cobrar a assinatura PANTERA pelo preço mensal e ativá-la na confirmação', async () => {
+    const { prisma, gateway, assinaturas, servico } = montar();
+    prisma.pagamento.upsert.mockImplementationOnce(
+      (args: { create: { valor: number } }) =>
+        Promise.resolve({ ...base, valor: decimal(args.create.valor) }),
+    );
+    await servico.iniciar(tutor, { assinaturaId: 'as1', metodo: 'PIX' });
+    expect(assinaturas.pendenteDoTutor).toHaveBeenCalledWith('t1', 'as1');
+    expect(gateway.criarCobranca).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valor: 14.9,
+        descricao: 'Assinatura PANTERA - 1 mês',
+      }),
+    );
+    const criacao = prisma.pagamento.upsert.mock.calls[0] as [
+      { create: { recebedorId: string | null; assinaturaId?: string } },
+    ];
+    expect(criacao[0].create).toMatchObject({
+      recebedorId: null,
+      assinaturaId: 'as1',
+    });
+
+    prisma.pagamento.findUnique.mockResolvedValueOnce({
+      ...base,
+      agendamentoId: null,
+      agendamento: null,
+      assinaturaId: 'as1',
+      recebedorId: null,
+    });
+    await servico.sincronizar('123');
+    expect(assinaturas.ativar).toHaveBeenCalledWith('as1');
+    expect(
+      await codigo(
+        servico.iniciar(tutor, {
+          agendamentoId: 'a1',
+          assinaturaId: 'as1',
+          metodo: 'PIX',
+        }),
+      ),
+    ).toBe('DADOS_INVALIDOS');
   });
 });
