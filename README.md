@@ -240,6 +240,7 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET` e `POST /v1/pets/{petId}/vacinacoes` | Histórico só com registros válidos, em ordem de aplicação (RN16), e registro com responsável obrigatório (RN17). Com `dataProximaDose`, os responsáveis recebem lembrete às 9h do dia anterior. |
 | `GET` e `POST /v1/pets/{petId}/tratamentos` | Tratamentos medicamentosos (UC-14). O cadastro agenda um lembrete por dose para cada responsável do pet (RN18, CT-14-01), da `horaPrimeiraDose` (padrão 8h) até o fim do último dia; sem data de fim, os próximos 30 dias, no máximo 120 doses. |
 | `POST /v1/tratamentos/{tratamentoId}/finalizacao` | Finaliza hoje e cancela os lembretes que ainda não saíram (CT-14-02). |
+| `GET` e `POST /v1/pets/{petId}/exames` | Histórico e registro de exames (UC-36), com laudo opcional que é um documento do próprio pet. A resposta diz só se há arquivo; o download sai por URL assinada. A empresa precisa dos escopos `EXAMES` e `EDICAO_CLINICA` para registrar (CT-36-02). |
 
 Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificacoesService`); o worker dispara os que vencem.
 
