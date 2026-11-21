@@ -231,6 +231,16 @@ O pagamento só fica ACEITO com a confirmação do gateway (RN39, DS-05). Na con
 
 Quando o cliente cria conta de tutor e confirma o e-mail, ele assume o cadastro e passa a ser o responsável principal dos pets cadastrados pela empresa (RC-33). Uma rotina diária do worker, às 3h, exclui pré-cadastros sem aceite há mais de 7 dias (CT-21-05).
 
+## Saúde do pet
+
+Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saude:ler` para consultar e `saude:editar` para registrar; a empresa, com `atendimento:ler` ou `atendimento:editar` e o escopo que o tutor compartilhou (`VACINAS`, `EXAMES`, `MEDICAMENTOS`, `ALERGIAS`), mais `EDICAO_CLINICA` para registrar. Pet de cliente sem conta da própria empresa dispensa o escopo.
+
+| Rota | Uso |
+|---|---|
+| `GET` e `POST /v1/pets/{petId}/vacinacoes` | Histórico só com registros válidos, em ordem de aplicação (RN16), e registro com responsável obrigatório (RN17). Com `dataProximaDose`, os responsáveis recebem lembrete às 9h do dia anterior. |
+
+Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificacoesService`); o worker dispara os que vencem.
+
 ## Auditoria e monitoramento (RN31, UC-25)
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
