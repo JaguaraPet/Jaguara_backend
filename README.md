@@ -260,6 +260,14 @@ Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificac
 | `POST /v1/pets/{petId}/eventos` | Cria o evento se o pet estiver livre (RN14, CT-10-02; evento sem fim ocupa uma hora) e agenda o lembrete uma hora antes para os responsáveis (CT-10-01). |
 | `DELETE /v1/eventos/{eventoId}` | Exclui o evento manual e cancela o lembrete. |
 
+## Alimentação do pet (UC-08)
+
+| Rota | Uso |
+|---|---|
+| `GET` e `PUT /v1/pets/{petId}/plano-alimentar` | Meta e limite diários em gramas e refeições por dia (RN12). Um plano novo substitui o ativo, que fica no histórico. |
+| `GET /v1/pets/{petId}/refeicoes?data=` | Refeições do dia de Brasília com consumo, percentual da meta e alerta de limite. |
+| `POST /v1/pets/{petId}/refeicoes` | Registra a refeição sempre; se o consumo do dia passa do limite, a resposta vem com `limiteExcedido: true` (CT-08-02). |
+
 ## Despesas do pet (UC-06)
 
 | Rota | Uso |
