@@ -125,6 +125,14 @@ Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e 
 | `PATCH /v1/funcionarios/{funcionarioId}` | Troca o perfil de acesso (UC-16) e encerra as sessões abertas, para as permissões novas valerem na hora. |
 | `DELETE /v1/funcionarios/{funcionarioId}` | Desliga o funcionário: conta inativa e todas as sessões revogadas na hora (RN23). |
 
+## Catálogo de serviços e recursos (UC-38)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/empresas/{empresaId}/servicos` | Catálogo da empresa. Tutores e outras empresas veem só os serviços ativos (UC-33); a própria empresa vê todos. |
+| `POST /v1/empresas/{empresaId}/servicos` e `PATCH /v1/servicos/{servicoId}` | Cadastra, edita e desativa serviços (`servico:editar`). O preço contratado fica no agendamento, então mudar o preço não altera o que já foi contratado (RN27). |
+| `GET` e `POST /v1/empresas/{empresaId}/recursos`, `PATCH /v1/recursos/{recursoId}` | Salas, equipamentos, baias e veículos da empresa (`recurso:editar`). Rotas acrescentadas ao contrato na versão 1.4.0. |
+
 ## Filas e e-mail
 
 O worker (`src/worker.ts`) processa as filas BullMQ no Redis, fora da requisição HTTP (ADR-011). A API só coloca o trabalho na fila.
