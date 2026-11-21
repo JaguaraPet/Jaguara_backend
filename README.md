@@ -244,6 +244,13 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 
 Os lembretes ficam na tabela `notificacao` com status AGENDADA (`AgendaNotificacoesService`); o worker dispara os que vencem.
 
+## Despesas do pet (UC-06)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/categorias-despesa` | Categorias padrão, criadas ou mantidas quando a API sobe (RN10). |
+| `GET` e `POST /v1/pets/{petId}/despesas` | Histórico com filtro por período (`de`, `ate`) e categoria, e registro com categoria obrigatória (CT-06-02). Só os responsáveis pelo pet, com `rotina:ler` e `rotina:editar`. |
+
 ## Auditoria e monitoramento (RN31, UC-25)
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
