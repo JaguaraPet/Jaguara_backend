@@ -2,6 +2,10 @@ import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-aut
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import type { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import type { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
+import type { ConfigService } from '@nestjs/config';
+import type { Ambiente } from '../../../compartilhado/config/ambiente';
+import { AssistenteSimulado } from '../infra/assistente-simulado';
+import { AssistenteService } from './assistente.service';
 import { CanalTempoReal } from './canal-tempo-real';
 import { ConversasService, EVENTO_MENSAGEM_NOVA } from './conversas.service';
 
@@ -50,7 +54,9 @@ describe('ConversasService (UC-43)', () => {
         }),
         findMany: jest.fn().mockResolvedValue([]),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        count: jest.fn().mockResolvedValue(0),
       },
+      pet: { findUnique: jest.fn().mockResolvedValue(null) },
       cliente: { count: jest.fn().mockResolvedValue(0) },
       agendamento: { count: jest.fn().mockResolvedValue(0) },
       assinatura: { findMany: jest.fn().mockResolvedValue([]) },
@@ -59,10 +65,16 @@ describe('ConversasService (UC-43)', () => {
     const politica = { nivel: jest.fn().mockResolvedValue('NENHUM') };
     const canal = new CanalTempoReal();
     const emitir = jest.spyOn(canal, 'emitir');
+    const assistente = new AssistenteService(
+      prisma as unknown as PrismaService,
+      { get: () => 2 } as unknown as ConfigService<Ambiente, true>,
+      new AssistenteSimulado(),
+    );
     const servico = new ConversasService(
       prisma as unknown as PrismaService,
       politica as unknown as PoliticaAcessoPet,
       canal,
+      assistente,
     );
     return { prisma, politica, emitir, servico };
   };
@@ -171,5 +183,42 @@ describe('ConversasService (UC-43)', () => {
         servico.listar({ ...tutor, tipo: 'ADMINISTRADOR', empresaId: null }),
       ),
     ).toBe('SEM_PERMISSAO');
+  });
+
+  it('deve abrir o assistente com o aviso e responder depois da mensagem do tutor', async () => {
+    const { prisma, emitir, servico } = montar();
+    const doAssistente = {
+      ...conversa,
+      tipo: 'ASSISTENTE_VIRTUAL' as const,
+      empresaId: null,
+    };
+    prisma.assinatura.findMany.mockResolvedValue([
+      { plano: 'PANTERA', status: 'ATIVA', dataFim: null },
+    ]);
+    prisma.conversa.create.mockResolvedValue(doAssistente);
+    await servico.iniciar(tutor, { tipo: 'ASSISTENTE_VIRTUAL' });
+    expect(prisma.mensagem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ remetenteId: null }) as unknown,
+      }),
+    );
+
+    prisma.conversa.findUnique.mockResolvedValue(doAssistente);
+    prisma.mensagem.findMany.mockResolvedValue([
+      {
+        conteudo: 'Que petisco posso dar?',
+        remetenteId: 't1',
+        dataHoraEnvio: new Date(),
+      },
+    ]);
+    await servico.enviar(tutor, 'c1', 'Que petisco posso dar?');
+    await servico.onApplicationShutdown();
+    expect(prisma.mensagem.create).toHaveBeenCalledTimes(3);
+    expect(emitir).toHaveBeenCalledTimes(3);
+
+    prisma.mensagem.count.mockResolvedValue(2);
+    expect(await codigo(servico.enviar(tutor, 'c1', 'Mais uma'))).toBe(
+      'ASSISTENTE_LIMITE_DIARIO',
+    );
   });
 });

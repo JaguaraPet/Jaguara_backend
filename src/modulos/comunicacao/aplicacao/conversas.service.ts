@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
+import { AVISO_INICIAL } from '../dominio/assistente';
 import {
-  assinaturaVigente,
   normalizarConteudo,
   participa,
   podeIniciar,
@@ -15,6 +15,7 @@ import type {
   StatusConversa,
   TipoConversa,
 } from '../dominio/conversa';
+import { AssistenteService } from './assistente.service';
 import { CanalTempoReal } from './canal-tempo-real';
 
 export interface Conversa {
@@ -41,11 +42,14 @@ const PAGINA_MENSAGENS = 50;
 
 /** Chat entre tutor e empresa e com o assistente virtual (UC-43). */
 @Injectable()
-export class ConversasService {
+export class ConversasService implements OnApplicationShutdown {
+  private readonly log = new Logger(ConversasService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly politicaPet: PoliticaAcessoPet,
     private readonly canal: CanalTempoReal,
+    private readonly assistente: AssistenteService,
   ) {}
 
   /** O tutor vê as conversas dele; a empresa vê as conversas abertas com ela. */
@@ -77,7 +81,7 @@ export class ConversasService {
         : false,
       temPantera:
         pedido.tipo === 'ASSISTENTE_VIRTUAL'
-          ? await this.temPantera(usuario.sub)
+          ? await this.assistente.temPantera(usuario.sub)
           : false,
     });
     switch (recusa) {
@@ -118,6 +122,9 @@ export class ConversasService {
         dataInicio: new Date(),
       },
     });
+    // UC-43, passo 2: o assistente abre com o aviso fixo (R08) e sugestões de perguntas.
+    if (criada.tipo === 'ASSISTENTE_VIRTUAL')
+      await this.registrar(criada, AVISO_INICIAL, null);
     return this.conversa(criada);
   }
 
@@ -162,7 +169,39 @@ export class ConversasService {
     }
     const texto = normalizarConteudo(conteudo);
     if (!texto.ok) throw Erros.dadosInvalidos('conteudo', texto.motivo);
-    return this.registrar(conversa, texto.texto, usuario.sub);
+    const doAssistente = conversa.tipo === 'ASSISTENTE_VIRTUAL';
+    if (doAssistente) await this.assistente.garantirEnvio(usuario.sub);
+    const mensagem = await this.registrar(conversa, texto.texto, usuario.sub);
+    // A resposta chega depois pelo evento mensagem:nova, sem segurar a requisição.
+    if (doAssistente) {
+      const resposta = this.responderAssistente(conversa).finally(() =>
+        this.respostas.delete(resposta),
+      );
+      this.respostas.add(resposta);
+    }
+    return mensagem;
+  }
+
+  /** Respostas do assistente em andamento (o desligamento da API espera por elas). */
+  private readonly respostas = new Set<Promise<void>>();
+
+  async onApplicationShutdown() {
+    await Promise.allSettled([...this.respostas]);
+  }
+
+  private async responderAssistente(conversa: {
+    id: string;
+    tipo: TipoConversa;
+    tutorId: string;
+    empresaId: string | null;
+    petId: string | null;
+  }): Promise<void> {
+    try {
+      const texto = await this.assistente.responder(conversa);
+      await this.registrar(conversa, texto, null);
+    } catch (erro) {
+      this.log.error(`Resposta do assistente não gravada: ${String(erro)}`);
+    }
   }
 
   /** UC-43, passos 6 e 7: o tutor encerra e a conversa fica arquivada. */
@@ -243,14 +282,6 @@ export class ConversasService {
       },
     });
     return agendamentos > 0;
-  }
-
-  private async temPantera(tutorId: string) {
-    const assinaturas = await this.prisma.assinatura.findMany({
-      where: { tutorId, plano: 'PANTERA', status: 'ATIVA' },
-    });
-    const hoje = new Date();
-    return assinaturas.some((a) => assinaturaVigente(a, hoje));
   }
 
   private conversa(c: {

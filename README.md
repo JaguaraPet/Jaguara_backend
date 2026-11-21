@@ -185,6 +185,18 @@ const r = await socket.emitWithAck('mensagem:enviar', { conversaId, conteudo: 'O
 
 No CapRover, ligue o suporte a WebSocket no app da API (opção "Websocket Support").
 
+### Assistente virtual (UC-43, ARQ-03 seção 3.5)
+
+Ao abrir a conversa com o assistente, a primeira mensagem é o aviso fixo de que ele não substitui o veterinário (risco R08), com sugestões de perguntas. Cada mensagem do tutor recebe a resposta pelo evento `mensagem:nova`, com `remetenteId` nulo. O provedor é a API da Anthropic, pelo SDK oficial:
+
+| Variável | Uso |
+|---|---|
+| `ANTHROPIC_API_KEY` | Chave da API. Sem ela, o assistente responde simulado, sem custo (desenvolvimento, testes e homologação). |
+| `IA_MODELO` | ID do modelo no provedor. Sem chave ou sem modelo, as respostas são simuladas. |
+| `IA_LIMITE_DIARIO` | Mensagens por assinante por dia, padrão 30 (429 `ASSISTENTE_LIMITE_DIARIO`). |
+
+Só a espécie, a raça, a idade aproximada e as alergias do pet vão para o provedor, nunca CPF, endereço ou dados de outros usuários (ARQ-02). As instruções fixas proíbem diagnóstico e prescrição e ficam em cache no provedor. Se o modelo recusar por política, a API tenta no modelo reserva (`fallbacks: "default"`); recusa final ou falha do provedor viram uma mensagem segura na conversa.
+
 ## Clientes da empresa (UC-21)
 
 | Rota | Uso |
