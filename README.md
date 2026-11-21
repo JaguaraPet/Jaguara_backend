@@ -116,6 +116,17 @@ Cada rota declara o acesso com um destes decoradores, e um teste automatizado fa
 
 Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e funcionários só vejam dados da própria empresa. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA` ou `SEM_PERMISSAO`).
 
+## Pets (UC-04)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/especies` | Espécies e raças cadastradas, para escolher na lista (RN07). |
+| `GET` e `POST /v1/pets` | Pets do tutor, com filtro por situação e paginação. Quem cadastra vira responsável principal (RN09). |
+| `GET` e `PATCH /v1/pets/{petId}` | Perfil e edição. Os responsáveis editam; empresas leem com compartilhamento ativo, agendamento ou cliente (RN24, RN26) e só editam pet de cliente sem conta delas (ADR-010, RN30). |
+| `DELETE /v1/pets/{petId}` e `POST .../arquivamento` | Só o responsável principal. Com histórico clínico ou financeiro, a exclusão é recusada e o pet pode ser arquivado (RN08). |
+
+A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, passo 5), e faz só a consulta que cada caso exige.
+
 ## Funcionários (UC-19)
 
 | Rota | Uso |
