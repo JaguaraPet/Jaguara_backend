@@ -282,6 +282,15 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET /v1/categorias-despesa` | Categorias padrão, criadas ou mantidas quando a API sobe (RN10). |
 | `GET` e `POST /v1/pets/{petId}/despesas` | Histórico com filtro por período (`de`, `ate`) e categoria, e registro com categoria obrigatória (CT-06-02). Só os responsáveis pelo pet, com `rotina:ler` e `rotina:editar`. |
 
+## Privacidade e direitos do titular (UC-46)
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/termos/vigentes` | Versão vigente de cada termo, sem login (RN42). |
+| `GET` e `PUT /v1/privacidade/consentimentos` | Situação dos termos da conta; termo obrigatório vigente sem aceite vem com `aceito: false` e o app pede o aceite (CT-46-03). Revogar o opcional grava a data e audita (CT-46-01); revogar o obrigatório é recusado com a sugestão de excluir a conta (CT-46-02). |
+| `POST /v1/privacidade/solicitacoes` | Exportação (na hora), exclusão com senha (imediata para o tutor: conta e pets anonimizados, pets divididos passam ao outro responsável, sessões encerradas) e correção (aberta para o suporte). |
+| `GET /v1/privacidade/exportacao` | Dados do titular em JSON (LGPD art. 18, V). |
+
 ## Auditoria e monitoramento (RN31, UC-25)
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
