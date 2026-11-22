@@ -269,6 +269,8 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET` e `POST /v1/pets/{petId}/exames` | Histórico e registro de exames (UC-36), com laudo opcional que é um documento do próprio pet. A resposta diz só se há arquivo; o download sai por URL assinada. A empresa precisa dos escopos `EXAMES` e `EDICAO_CLINICA` para registrar (CT-36-02). |
 | `GET` e `POST /v1/pets/{petId}/alergias`, `PATCH` e `DELETE /v1/alergias/{id}` | Alergias e restrições (UC-37), as graves primeiro e com `destaque` (CT-37-01). Alterar e excluir são edição clínica: a empresa precisa de `ALERGIAS` e `EDICAO_CLINICA` (CT-37-02). |
 | `GET /v1/pets/{petId}/linha-do-tempo` | Vacinas, exames, tratamentos, compromissos e atendimentos em ordem cronológica (UC-35, CT-35-01). A empresa precisa do escopo `LINHA_DO_TEMPO` (CT-35-02). |
+| `GET /v1/empresas/{empresaId}/pets-vinculados` | Pets da empresa (UC-20, RN24): só os com compartilhamento ativo, agendamento com a empresa ou de clientes dela, com os `motivos` do vínculo e as `secoes` liberadas (CT-20-01). Precisa de `cliente:ler` ou `atendimento:ler`. |
+| `GET /v1/empresas/{empresaId}/pets/{petId}/perfil` | Perfil básico e só as seções que o tutor liberou (UC-22, RN26, CT-22-01); pet sem vínculo responde 403 (CT-20-02, CT-22-02). |
 
 
 ## Calendário do pet (UC-10)
