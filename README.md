@@ -310,6 +310,10 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
 
+## Gestão de contas (UC-28, RN34)
+
+Rotas do administrador com `admin:usuarios`: `GET /v1/admin/usuarios?busca=&status=` busca por nome ou e-mail, `GET /v1/admin/usuarios/{id}` mostra o perfil, as sessões ativas e as últimas mudanças de status, e `PUT /v1/admin/usuarios/{id}/status` suspende, bloqueia ou reativa com motivo obrigatório. A mudança e o registro na auditoria (`CONTA_SUSPENSA`, `CONTA_BLOQUEADA`, `CONTA_REATIVADA`) vão na mesma transação: se a auditoria falhar, nada muda e a API responde 503 `RN34_AUDITORIA_INDISPONIVEL` (CT-28-02). Bloquear ou suspender encerra as sessões da conta; reativar zera as tentativas de login. A própria conta, contas pendentes de confirmação e contas excluídas não mudam (409 `RN34_STATUS_INVALIDO`).
+
 ## Notificações automáticas (UC-31)
 
 Vacinas, tratamentos e eventos agendam lembretes para os responsáveis do pet na tabela `notificacao` (status AGENDADA), com o canal e a antecedência que cada pessoa configurou para o tipo de compromisso (RN37). Sem configuração vale o padrão: push, um dia antes para vacina, cirurgia e hospedagem, uma hora antes para consultas e compromissos e na hora para remédios.
