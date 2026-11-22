@@ -1,7 +1,8 @@
 import type { NivelAcessoPet } from '../../pet/dominio/pet';
 
 /** Partes da saúde do pet que o tutor compartilha separadamente (RN15). */
-export type EscopoSaude = 'VACINAS' | 'EXAMES' | 'MEDICAMENTOS' | 'ALERGIAS';
+export type EscopoSaude =
+  'VACINAS' | 'EXAMES' | 'MEDICAMENTOS' | 'ALERGIAS' | 'LINHA_DO_TEMPO';
 export type ModoAcesso = 'ler' | 'editar';
 
 /**
