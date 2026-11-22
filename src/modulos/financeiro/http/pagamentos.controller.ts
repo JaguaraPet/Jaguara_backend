@@ -7,6 +7,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Type } from 'class-transformer';
 import {
   IsIn,
   IsInt,
@@ -16,6 +17,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   Permissoes,
@@ -28,6 +30,7 @@ import {
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import type { Ambiente } from '../../../compartilhado/config/ambiente';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
+import { EnderecoDto } from '../../acesso/http/cadastro.dto';
 import { Pagamento, PagamentosService } from '../aplicacao/pagamentos.service';
 import { assinaturaValida } from '../dominio/pagamento';
 import type { MetodoPagamento } from '../dominio/pagamento';
@@ -63,6 +66,12 @@ export class NovoPagamentoDto {
   @Min(1)
   @Max(12)
   parcelas?: number;
+
+  /** Endereço do pagador para registrar o boleto; sem ele, vale o guardado no cadastro. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EnderecoDto)
+  endereco?: EnderecoDto;
 }
 
 @Controller()
@@ -72,7 +81,7 @@ export class PagamentosController {
     private readonly config: ConfigService<Ambiente, true>,
   ) {}
 
-  /** UC-44: o tutor paga um serviço agendado com PIX ou cartão. */
+  /** UC-44: o tutor paga um serviço agendado ou a assinatura com PIX, cartão ou boleto. */
   @SomenteTutor()
   @Permissoes('pagamento:realizar')
   @Post('pagamentos')

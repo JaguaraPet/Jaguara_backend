@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
+import type { Ambiente } from '../../../compartilhado/config/ambiente';
+import { Cifragem } from '../../../compartilhado/cripto/cifragem';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
@@ -15,8 +18,11 @@ import {
   PREFIXO_PROVISORIO,
 } from '../dominio/pagamento';
 import type {
+  DadosBoleto,
+  EnderecoPagador,
   GatewayPagamento,
   MetodoPagamento,
+  PagadorBoleto,
   SituacaoCobranca,
   StatusPagamento,
 } from '../dominio/pagamento';
@@ -33,6 +39,7 @@ export interface Pagamento {
   dataConfirmacao?: string;
   agendamentoId?: string;
   qrCode?: string;
+  boleto?: DadosBoleto;
   motivoRecusa?: string;
 }
 
@@ -46,6 +53,7 @@ const ESPERA_RECONCILIACAO_MS = 10 * 60_000;
 @Injectable()
 export class PagamentosService {
   private readonly log = new Logger(PagamentosService.name);
+  private readonly cifragem: Cifragem;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -55,12 +63,18 @@ export class PagamentosService {
     @Inject(GATEWAY_PAGAMENTO) private readonly gateway: GatewayPagamento,
     private readonly assinaturas: AssinaturasService,
     private readonly webhooks: PublicadorWebhook,
-  ) {}
+    config: ConfigService<Ambiente, true>,
+  ) {
+    this.cifragem = new Cifragem(
+      config.get('CHAVE_CRIPTOGRAFIA', { infer: true }),
+    );
+  }
 
   /**
    * CT-44-01 e CT-44-02: grava o pagamento PENDENTE com o preço contratado (RN27), cria a
    * cobrança no gateway com o id do pagamento como chave de idempotência e devolve o QR code
-   * do PIX ou o resultado do cartão.
+   * do PIX, o boleto ou o resultado do cartão. O boleto leva nome, CPF e endereço do tutor;
+   * o endereço informado fica guardado para o próximo boleto.
    */
   async iniciar(
     usuario: UsuarioAutenticado,
@@ -71,6 +85,7 @@ export class PagamentosService {
       tokenCartao?: string;
       bandeiraCartao?: string;
       parcelas?: number;
+      endereco?: EnderecoPagador;
     },
   ): Promise<Pagamento> {
     if (!pedido.agendamentoId === !pedido.assinaturaId) {
@@ -79,10 +94,8 @@ export class PagamentosService {
         'Escolha o agendamento ou a assinatura que você vai pagar.',
       );
     }
-    if (pedido.metodo === 'BOLETO') {
-      throw Erros.dadosInvalidos('metodo', 'Pague com PIX ou cartão.');
-    }
-    const cartao = pedido.metodo !== 'PIX';
+    const cartao =
+      pedido.metodo === 'CARTAO_CREDITO' || pedido.metodo === 'CARTAO_DEBITO';
     if (cartao && (!pedido.tokenCartao || !pedido.bandeiraCartao)) {
       throw Erros.dadosInvalidos(
         'tokenCartao',
@@ -106,6 +119,16 @@ export class PagamentosService {
           ? 'Este serviço já foi pago.'
           : 'Esta assinatura já foi paga.',
       );
+    }
+
+    const pagador =
+      pedido.metodo === 'BOLETO'
+        ? await this.pagadorBoleto(usuario.sub, pedido.endereco)
+        : undefined;
+    if (pagador) {
+      // Boleto em aberto do mesmo serviço: devolve o mesmo, sem emitir outro.
+      const emAberto = await this.boletoEmAberto(usuario.sub, alvo);
+      if (emAberto) return emAberto;
     }
 
     // Uma tentativa que não chegou ao gateway é reaproveitada, com a mesma chave de idempotência.
@@ -156,6 +179,7 @@ export class PagamentosService {
               parcelas: pedido.parcelas ?? 1,
             }
           : undefined,
+        pagador,
       });
     } catch (erro) {
       if (erro instanceof GatewayIndisponivel)
@@ -177,11 +201,92 @@ export class PagamentosService {
     return {
       ...this.resposta(atual),
       qrCode: cobranca.qrCode,
+      boleto: cobranca.boleto,
       motivoRecusa:
         atual.status === 'RECUSADO'
           ? motivoRecusa(cobranca.detalhe)
           : undefined,
     };
+  }
+
+  /**
+   * Nome, CPF e endereço para registrar o boleto. O endereço vem do pedido (e fica guardado no
+   * cadastro do tutor) ou do cadastro, quando o tutor já informou antes.
+   */
+  private async pagadorBoleto(
+    tutorId: string,
+    endereco?: EnderecoPagador,
+  ): Promise<PagadorBoleto> {
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: tutorId },
+    });
+    if (!tutor) throw Erros.semPermissao('Só o tutor paga com boleto.');
+    if (endereco) {
+      await this.prisma.tutor.update({
+        where: { id: tutorId },
+        data: {
+          enderecoCep: endereco.cep,
+          enderecoLogradouro: endereco.logradouro,
+          enderecoNumero: endereco.numero,
+          enderecoComplemento: endereco.complemento ?? null,
+          enderecoBairro: endereco.bairro,
+          enderecoCidade: endereco.cidade,
+          enderecoUf: endereco.uf,
+        },
+      });
+    }
+    const guardado =
+      tutor.enderecoCep &&
+      tutor.enderecoLogradouro &&
+      tutor.enderecoNumero &&
+      tutor.enderecoBairro &&
+      tutor.enderecoCidade &&
+      tutor.enderecoUf
+        ? {
+            cep: tutor.enderecoCep,
+            logradouro: tutor.enderecoLogradouro,
+            numero: tutor.enderecoNumero,
+            complemento: tutor.enderecoComplemento ?? undefined,
+            bairro: tutor.enderecoBairro,
+            cidade: tutor.enderecoCidade,
+            uf: tutor.enderecoUf,
+          }
+        : undefined;
+    const usado = endereco ?? guardado;
+    if (!usado) {
+      throw Erros.dadosInvalidos(
+        'endereco',
+        'Para pagar com boleto, informe o seu endereço.',
+      );
+    }
+    return {
+      nome: tutor.nome,
+      cpf: this.cifragem.decifrar(tutor.cpfCifrado),
+      endereco: usado,
+    };
+  }
+
+  /** Boleto PENDENTE já emitido para o mesmo alvo, ainda em aberto no gateway. */
+  private async boletoEmAberto(
+    tutorId: string,
+    alvo: { agendamentoId?: string; assinaturaId?: string },
+  ): Promise<Pagamento | null> {
+    const anterior = await this.prisma.pagamento.findFirst({
+      where: {
+        ...alvo,
+        pagadorId: tutorId,
+        metodo: 'BOLETO',
+        status: 'PENDENTE',
+        NOT: { codigoTransacao: { startsWith: PREFIXO_PROVISORIO } },
+      },
+      orderBy: { dataHora: 'desc' },
+    });
+    if (!anterior) return null;
+    const situacao = await this.gateway
+      .consultar(anterior.codigoTransacao)
+      .catch(() => null);
+    if (situacao?.status !== 'PENDENTE' || !situacao.boleto) return null;
+    return { ...this.resposta(anterior), boleto: situacao.boleto };
   }
 
   /** Serviço agendado: o responsável paga o preço contratado à empresa (RN27). */

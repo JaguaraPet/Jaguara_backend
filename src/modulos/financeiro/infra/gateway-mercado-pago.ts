@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import {
   GatewayPagamento,
   MetodoPagamento,
+  PagadorBoleto,
   SituacaoCobranca,
   statusDoGateway,
+  vencimentoBoleto,
 } from '../dominio/pagamento';
 
 /** Falha de comunicação com o gateway: o pagamento fica PENDENTE (ARQ-03, seção 3.1). */
@@ -14,6 +16,12 @@ interface PagamentoMercadoPago {
   status: string;
   status_detail?: string;
   point_of_interaction?: { transaction_data?: { qr_code?: string } };
+  date_of_expiration?: string;
+  barcode?: { content?: string };
+  transaction_details?: {
+    external_resource_url?: string;
+    digitable_line?: string;
+  };
 }
 
 const URL_PADRAO = 'https://api.mercadopago.com';
@@ -41,6 +49,7 @@ export class GatewayMercadoPago implements GatewayPagamento {
     descricao: string;
     emailPagador: string;
     cartao?: { token: string; bandeira: string; parcelas: number };
+    pagador?: PagadorBoleto;
   }): Promise<SituacaoCobranca> {
     const corpo = {
       transaction_amount: pedido.valor,
@@ -48,13 +57,7 @@ export class GatewayMercadoPago implements GatewayPagamento {
       external_reference: pedido.pagamentoId,
       payer: { email: pedido.emailPagador },
       ...(this.urlNotificacao ? { notification_url: this.urlNotificacao } : {}),
-      ...(pedido.metodo === 'PIX'
-        ? { payment_method_id: 'pix' }
-        : {
-            payment_method_id: pedido.cartao?.bandeira,
-            token: pedido.cartao?.token,
-            installments: pedido.cartao?.parcelas ?? 1,
-          }),
+      ...this.meio(pedido),
     };
     const resposta = await this.chamar('/v1/payments', {
       method: 'POST',
@@ -67,6 +70,43 @@ export class GatewayMercadoPago implements GatewayPagamento {
     });
     if (!resposta) throw new GatewayIndisponivel();
     return this.situacao(resposta);
+  }
+
+  /** Campos de cada meio: PIX, boleto registrado (com CPF e endereço do pagador) ou cartão tokenizado. */
+  private meio(pedido: {
+    metodo: MetodoPagamento;
+    emailPagador: string;
+    cartao?: { token: string; bandeira: string; parcelas: number };
+    pagador?: PagadorBoleto;
+  }) {
+    if (pedido.metodo === 'PIX') return { payment_method_id: 'pix' };
+    if (pedido.metodo === 'BOLETO') {
+      const pagador = pedido.pagador!;
+      const [primeiro, ...resto] = pagador.nome.trim().split(/\s+/);
+      return {
+        payment_method_id: 'bolbradesco',
+        date_of_expiration: vencimentoBoleto(new Date()),
+        payer: {
+          email: pedido.emailPagador,
+          first_name: primeiro,
+          last_name: resto.join(' ') || primeiro,
+          identification: { type: 'CPF', number: pagador.cpf },
+          address: {
+            zip_code: pagador.endereco.cep,
+            street_name: pagador.endereco.logradouro,
+            street_number: pagador.endereco.numero,
+            neighborhood: pagador.endereco.bairro,
+            city: pagador.endereco.cidade,
+            federal_unit: pagador.endereco.uf,
+          },
+        },
+      };
+    }
+    return {
+      payment_method_id: pedido.cartao?.bandeira,
+      token: pedido.cartao?.token,
+      installments: pedido.cartao?.parcelas ?? 1,
+    };
   }
 
   async consultar(codigoTransacao: string): Promise<SituacaoCobranca | null> {
@@ -83,6 +123,14 @@ export class GatewayMercadoPago implements GatewayPagamento {
       status: statusDoGateway(p.status),
       detalhe: p.status_detail,
       qrCode: p.point_of_interaction?.transaction_data?.qr_code,
+      boleto: p.transaction_details?.external_resource_url
+        ? {
+            url: p.transaction_details.external_resource_url,
+            linhaDigitavel:
+              p.transaction_details.digitable_line ?? p.barcode?.content ?? '',
+            vencimento: p.date_of_expiration ?? '',
+          }
+        : undefined,
     };
   }
 
