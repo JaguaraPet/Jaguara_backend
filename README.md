@@ -310,6 +310,10 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 
 Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `AuditoriaInterceptor` global (ADR-012, passo 6): cadastro, troca de perfil e desligamento de funcionário, alteração de serviço, cadastro de cliente e revogação de consentimento, além do bloqueio de conta por tentativas (RN03). A gravação nunca derruba a requisição. `GET /v1/admin/logs` lista os registros para o administrador, com filtro por nível (`INFO`, `ALERTA`, `CRITICO`) e período (`de` e `ate`).
 
+## Relatórios da empresa (UC-18, RN22)
+
+`GET /v1/empresas/{empresaId}/relatorios/{tipo}?de=&ate=` gera o relatório só com os dados da própria empresa e registra a emissão em `relatorio`. `atendimentos` (operacional) traz os agendamentos do período por status, serviço e profissional e a taxa de comparecimento; `financeiro` (gerencial) traz faturamento, ticket médio, pendentes e totais por serviço e método. Todos exigem `relatorio:ler`, e o financeiro também `financeiro:ler`: sem a permissão, 403 (CT-18-02). Com `Accept: application/pdf` sai o arquivo, pelo mesmo gerador do relatório de despesas.
+
 ## Gestão de contas (UC-28, RN34)
 
 Rotas do administrador com `admin:usuarios`: `GET /v1/admin/usuarios?busca=&status=` busca por nome ou e-mail, `GET /v1/admin/usuarios/{id}` mostra o perfil, as sessões ativas e as últimas mudanças de status, e `PUT /v1/admin/usuarios/{id}/status` suspende, bloqueia ou reativa com motivo obrigatório. A mudança e o registro na auditoria (`CONTA_SUSPENSA`, `CONTA_BLOQUEADA`, `CONTA_REATIVADA`) vão na mesma transação: se a auditoria falhar, nada muda e a API responde 503 `RN34_AUDITORIA_INDISPONIVEL` (CT-28-02). Bloquear ou suspender encerra as sessões da conta; reativar zera as tentativas de login. A própria conta, contas pendentes de confirmação e contas excluídas não mudam (409 `RN34_STATUS_INVALIDO`).
