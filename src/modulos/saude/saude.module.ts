@@ -4,12 +4,14 @@ import { PetModule } from '../pet/pet.module';
 import { AlergiasService } from './aplicacao/alergias.service';
 import { ExamesService } from './aplicacao/exames.service';
 import { LinhaDoTempoService } from './aplicacao/linha-do-tempo.service';
+import { PetsVinculadosService } from './aplicacao/pets-vinculados.service';
 import { PoliticaSaude } from './aplicacao/politica-saude';
 import { TratamentosService } from './aplicacao/tratamentos.service';
 import { VacinacoesService } from './aplicacao/vacinacoes.service';
 import { AlergiasController } from './http/alergias.controller';
 import { ExamesController } from './http/exames.controller';
 import { LinhaDoTempoController } from './http/linha-do-tempo.controller';
+import { PetsVinculadosController } from './http/pets-vinculados.controller';
 import { TratamentosController } from './http/tratamentos.controller';
 import { VacinacoesController } from './http/vacinacoes.controller';
 
@@ -21,6 +23,7 @@ import { VacinacoesController } from './http/vacinacoes.controller';
     ExamesController,
     AlergiasController,
     LinhaDoTempoController,
+    PetsVinculadosController,
   ],
   providers: [
     PoliticaSaude,
@@ -29,6 +32,7 @@ import { VacinacoesController } from './http/vacinacoes.controller';
     ExamesService,
     AlergiasService,
     LinhaDoTempoService,
+    PetsVinculadosService,
   ],
   exports: [PoliticaSaude],
 })
