@@ -5,9 +5,11 @@ import { PetModule } from '../pet/pet.module';
 import { DespesasService } from './aplicacao/despesas.service';
 import { AssinaturasService } from './aplicacao/assinaturas.service';
 import { PagamentosService } from './aplicacao/pagamentos.service';
+import { RelatorioDespesasService } from './aplicacao/relatorio-despesas.service';
 import { AssinaturasController } from './http/assinaturas.controller';
 import { DespesasController } from './http/despesas.controller';
 import { PagamentosController } from './http/pagamentos.controller';
+import { RelatoriosController } from './http/relatorios.controller';
 import { provedorGateway } from './infra/gateway.provider';
 
 @Module({
@@ -16,11 +18,13 @@ import { provedorGateway } from './infra/gateway.provider';
     PagamentosController,
     DespesasController,
     AssinaturasController,
+    RelatoriosController,
   ],
   providers: [
     PagamentosService,
     AssinaturasService,
     DespesasService,
+    RelatorioDespesasService,
     provedorGateway,
   ],
   exports: [PagamentosService],
