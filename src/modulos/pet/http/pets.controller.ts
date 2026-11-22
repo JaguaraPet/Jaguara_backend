@@ -168,4 +168,15 @@ export class PetsController {
   ): Promise<void> {
     await this.pets.arquivar(usuario, petId);
   }
+
+  @SomenteTutor()
+  @Permissoes('pet:editar')
+  @Delete('pets/:petId/arquivamento')
+  @HttpCode(204)
+  async desarquivar(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('petId', ParseUUIDPipe) petId: string,
+  ): Promise<void> {
+    await this.pets.desarquivar(usuario, petId);
+  }
 }

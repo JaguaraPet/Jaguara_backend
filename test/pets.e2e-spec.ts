@@ -173,6 +173,18 @@ describe('UC-04 · Pets (API)', () => {
       http().get('/v1/pets?status=ARQUIVADO'),
     ).expect(200);
     expect(arquivados.body).toMatchObject({ total: 1 });
+
+    await com(tokenAna, http().delete(`/v1/pets/${petId}/arquivamento`)).expect(
+      204,
+    );
+    const ativos = await com(
+      tokenAna,
+      http().get('/v1/pets?status=ATIVO'),
+    ).expect(200);
+    expect(ativos.body).toMatchObject({ total: 1 });
+    await com(tokenAna, http().delete(`/v1/pets/${petId}/arquivamento`)).expect(
+      409,
+    );
   });
 
   it('deve excluir pet sem histórico', async () => {
