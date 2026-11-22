@@ -131,6 +131,10 @@ Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e 
 
 A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, passo 5), e faz só a consulta que cada caso exige.
 
+### Responsáveis pelo pet (UC-05)
+
+`GET`, `POST`, `PATCH` e `DELETE /v1/pets/{petId}/responsaveis[/{tutorId}]`: o responsável principal vincula outro tutor pelo e-mail da conta (CT-05-01), troca entre principal e adicional e remove vínculos; o adicional só sai do próprio. O pet nunca fica sem principal (RN09, `RN09_SEM_PRINCIPAL`, CT-05-02).
+
 ## Funcionários (UC-19)
 
 | Rota | Uso |
