@@ -161,6 +161,8 @@ A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, p
 | `GET /v1/servicos/{servicoId}/horarios-disponiveis?data=AAAA-MM-DD` | Horários livres no dia, de 30 em 30 minutos: o serviço inteiro precisa caber no turno de algum profissional ou recurso que não tenha agendamento no intervalo (RN40, RN29). Horários no fuso de Brasília. |
 | `POST /v1/solicitacoes` | O tutor solicita para um dos seus pets. A API confere de novo a disponibilidade e o conflito com outro agendamento do pet (RN14, CT-40-02) e grava a solicitação pendente com a primeira entrada do histórico (RN38). |
 | `GET /v1/solicitacoes` | As do tutor logado ou as da empresa, com filtro por situação. |
+| `POST /v1/solicitacoes/{id}/aceite` | A empresa aceita: o agendamento nasce com o preço atual (RN27), sem conflito (RN29), a solicitação vira ACEITA com histórico e o tutor recebe e-mail, tudo numa transação (CT-41-01, DS-03). |
+| `POST /v1/solicitacoes/{id}/recusa` | Recusa com motivo obrigatório, que vai para o histórico e para o tutor por e-mail (CT-41-02). |
 
 A regra de disponibilidade fica em `modulos/atendimento/dominio/disponibilidade.ts`, sem dependência de banco.
 

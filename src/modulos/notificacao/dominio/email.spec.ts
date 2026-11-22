@@ -93,4 +93,27 @@ describe('montarEmail', () => {
     expect(msg.texto).toContain('até o tutor revogar');
     expect(msg.html).toContain('http://x/compartilhado/abc');
   });
+
+  it('deve dizer se a empresa aceitou e o motivo da recusa', () => {
+    const base = {
+      nome: 'Ana',
+      empresa: 'Banho Cheiroso',
+      pet: 'Thor',
+      servico: 'Banho',
+      dataHora: '25/11/2026 09:00',
+    };
+    const aceita = montarEmail({
+      tipo: 'SOLICITACAO_RESPONDIDA',
+      para: 'ana@exemplo.com',
+      dados: { ...base, aceita: true },
+    });
+    expect(aceita.assunto).toBe('Pedido aceito: Banho para Thor');
+    const recusada = montarEmail({
+      tipo: 'SOLICITACAO_RESPONDIDA',
+      para: 'ana@exemplo.com',
+      dados: { ...base, aceita: false, motivo: 'Agenda cheia' },
+    });
+    expect(recusada.texto).toContain('Motivo: Agenda cheia');
+    expect(recusada.html).toContain('Pedido não aceito');
+  });
 });

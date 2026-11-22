@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -14,14 +15,20 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 import {
   Autenticado,
   Permissoes,
+  SomenteEnterprise,
   SomenteTutor,
 } from '../../../compartilhado/auth/permissoes';
 import { UsuarioAtual } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
+import {
+  Agendamento,
+  AgendamentosService,
+} from '../aplicacao/agendamentos.service';
 import {
   Solicitacao,
   SolicitacoesService,
@@ -52,6 +59,23 @@ export class NovaSolicitacaoDto {
   observacoes?: string;
 }
 
+export class AceiteDto {
+  @IsOptional()
+  @IsUUID('all', { message: 'Escolha o profissional' })
+  profissionalId?: string;
+
+  @IsOptional()
+  @IsUUID('all', { message: 'Escolha o recurso' })
+  recursoId?: string;
+}
+
+export class RecusaDto {
+  @IsString({ message: 'Explique ao tutor o motivo da recusa' })
+  @MinLength(3, { message: 'Explique ao tutor o motivo da recusa' })
+  @MaxLength(500)
+  motivo: string;
+}
+
 export class FiltroSolicitacoesDto {
   @IsOptional()
   @IsIn([
@@ -67,7 +91,10 @@ export class FiltroSolicitacoesDto {
 
 @Controller()
 export class SolicitacoesController {
-  constructor(private readonly solicitacoes: SolicitacoesService) {}
+  constructor(
+    private readonly solicitacoes: SolicitacoesService,
+    private readonly agendamentos: AgendamentosService,
+  ) {}
 
   /** RN40: horários livres do serviço no dia. */
   @Autenticado()
@@ -101,5 +128,36 @@ export class SolicitacoesController {
     @Query() filtro: FiltroSolicitacoesDto,
   ): Promise<Solicitacao[]> {
     return this.solicitacoes.listar(usuario, filtro.status);
+  }
+
+  /** UC-41, CT-41-01: aceitar cria o agendamento e avisa o tutor (DS-03). */
+  @SomenteEnterprise()
+  @Permissoes('agenda:editar')
+  @Post('solicitacoes/:solicitacaoId/aceite')
+  @HttpCode(200)
+  aceitar(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('solicitacaoId', ParseUUIDPipe) solicitacaoId: string,
+    @Body() dto: AceiteDto,
+  ): Promise<Agendamento> {
+    return this.agendamentos.aceitarSolicitacao(usuario, solicitacaoId, dto);
+  }
+
+  /** UC-41, CT-41-02: recusar exige o motivo. */
+  @SomenteEnterprise()
+  @Permissoes('agenda:editar')
+  @Post('solicitacoes/:solicitacaoId/recusa')
+  @HttpCode(204)
+  async recusar(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('solicitacaoId', ParseUUIDPipe) solicitacaoId: string,
+    @Body() dto: RecusaDto,
+  ): Promise<void> {
+    await this.solicitacoes.recusar(usuario, solicitacaoId, dto.motivo);
+    await this.agendamentos.avisarResposta(
+      solicitacaoId,
+      false,
+      dto.motivo.trim(),
+    );
   }
 }

@@ -239,6 +239,127 @@ export class AgendamentosService {
     };
   }
 
+  /**
+   * UC-41, CT-41-01 (DS-03): a empresa aceita o pedido; o agendamento nasce com o preço
+   * atual do serviço (RN27), sem conflito de pet, profissional ou recurso (RN29), e a
+   * solicitação vira ACEITA com o histórico (RN38), tudo numa transação. O tutor é avisado.
+   */
+  async aceitarSolicitacao(
+    usuario: UsuarioAutenticado,
+    solicitacaoId: string,
+    dados: { profissionalId?: string; recursoId?: string },
+  ): Promise<Agendamento> {
+    const solicitacao = await this.prisma.solicitacaoServico.findUnique({
+      where: { id: solicitacaoId },
+      include: { servico: true },
+    });
+    if (!solicitacao) throw Erros.naoEncontrado('Solicitação não encontrada');
+    garantirMesmaEmpresa(usuario, solicitacao.servico.empresaId);
+    if (solicitacao.status !== 'PENDENTE') {
+      throw Erros.conflito(
+        'SOLICITACAO_RESPONDIDA',
+        'Esta solicitação já foi respondida.',
+      );
+    }
+    await this.garantirDonos(
+      solicitacao.servico.empresaId,
+      dados.profissionalId,
+      dados.recursoId,
+    );
+    const inicio = solicitacao.dataHoraDesejada;
+    const fim = new Date(
+      inicio.getTime() + solicitacao.servico.duracaoMinutos * 60_000,
+    );
+    await this.garantirSemConflito({
+      inicio,
+      fim,
+      petId: solicitacao.petId,
+      profissionalId: dados.profissionalId,
+      recursoId: dados.recursoId,
+    });
+    const agora = new Date();
+    const criado = await this.gravar(() =>
+      this.prisma.$transaction(async (tx) => {
+        const { count } = await tx.solicitacaoServico.updateMany({
+          where: { id: solicitacaoId, status: 'PENDENTE' },
+          data: { status: 'ACEITA' },
+        });
+        if (count === 0) {
+          throw Erros.conflito(
+            'SOLICITACAO_RESPONDIDA',
+            'Esta solicitação já foi respondida.',
+          );
+        }
+        await tx.historicoSolicitacao.create({
+          data: {
+            solicitacaoId,
+            dataHora: agora,
+            statusAnterior: 'PENDENTE',
+            statusNovo: 'ACEITA',
+            descricao: 'Aceita pela empresa',
+            autorId: usuario.sub,
+          },
+        });
+        return tx.agendamento.create({
+          data: {
+            servicoId: solicitacao.servicoId,
+            petId: solicitacao.petId,
+            solicitacaoId,
+            profissionalId: dados.profissionalId,
+            recursoId: dados.recursoId,
+            dataHoraInicio: inicio,
+            dataHoraFim: fim,
+            precoContratado: solicitacao.servico.preco,
+            status: 'AGENDADO',
+            criadoEm: agora,
+          },
+        });
+      }),
+    );
+    await this.avisarResposta(solicitacaoId, true);
+    await this.webhooks.publicar('solicitacao.status_alterado', {
+      solicitacaoId,
+      empresaId: solicitacao.servico.empresaId,
+      status: 'ACEITA',
+    });
+    await this.webhooks.publicar('agendamento.criado', {
+      agendamentoId: criado.id,
+      servicoId: solicitacao.servicoId,
+      empresaId: solicitacao.servico.empresaId,
+      dataHoraInicio: inicio.toISOString(),
+      dataHoraFim: fim.toISOString(),
+    });
+    return this.resposta(criado);
+  }
+
+  /** Avisa o tutor que pediu se a empresa aceitou ou recusou (CT-41-01). */
+  async avisarResposta(
+    solicitacaoId: string,
+    aceita: boolean,
+    motivo?: string,
+  ): Promise<void> {
+    const s = await this.prisma.solicitacaoServico.findUnique({
+      where: { id: solicitacaoId },
+      include: {
+        servico: { include: { empresa: { select: { nomeFantasia: true } } } },
+        pet: { select: { nome: true } },
+        tutor: { include: { usuario: { select: { email: true } } } },
+      },
+    });
+    if (!s) return;
+    await this.fila.enviar('SOLICITACAO_RESPONDIDA', s.tutor.usuario.email, {
+      nome: s.tutor.nome,
+      empresa: s.servico.empresa.nomeFantasia,
+      pet: s.pet.nome,
+      servico: s.servico.nome,
+      dataHora: s.dataHoraDesejada.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+      }),
+      aceita,
+      motivo,
+    });
+  }
+
   private async buscar(agendamentoId: string) {
     const agendamento = await this.prisma.agendamento.findUnique({
       where: { id: agendamentoId },
