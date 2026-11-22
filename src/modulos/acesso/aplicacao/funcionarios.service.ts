@@ -24,7 +24,17 @@ export interface Funcionario {
   email: string;
   cargo: string | null;
   perfil: string;
+  perfilId: string;
   ativo: boolean;
+  /** Convite ainda não aceito: o funcionário não criou a senha (RN02). */
+  pendente: boolean;
+}
+
+export interface PerfilDaEmpresa {
+  id: string;
+  nome: string;
+  descricao?: string;
+  permissoes: string[];
 }
 
 export interface NovoFuncionario {
@@ -64,6 +74,25 @@ export class FuncionariosService {
       orderBy: { nome: 'asc' },
     });
     return funcionarios.map((f) => this.paraResposta(f));
+  }
+
+  /** Perfis que a empresa pode dar aos funcionários (RN20), para o cadastro e a troca de perfil. */
+  async perfis(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+  ): Promise<PerfilDaEmpresa[]> {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const perfis = await this.prisma.perfilAcesso.findMany({
+      where: { empresaId },
+      include: { perfilPermissao: { include: { permissao: true } } },
+      orderBy: { nome: 'asc' },
+    });
+    return perfis.map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      descricao: p.descricao ?? undefined,
+      permissoes: p.perfilPermissao.map((pp) => pp.permissao.codigo).sort(),
+    }));
   }
 
   /** Cadastra o funcionário e envia o convite; a conta fica pendente até ele criar a senha (RN02). */
@@ -237,7 +266,11 @@ export class FuncionariosService {
     nome: string;
     cargo: string | null;
     ativo: boolean;
-    usuario: { email: string; perfil: { nome: string } };
+    usuario: {
+      email: string;
+      status: string;
+      perfil: { id: string; nome: string };
+    };
   }): Funcionario {
     return {
       id: f.id,
@@ -245,7 +278,9 @@ export class FuncionariosService {
       email: f.usuario.email,
       cargo: f.cargo,
       perfil: f.usuario.perfil.nome,
+      perfilId: f.usuario.perfil.id,
       ativo: f.ativo,
+      pendente: f.usuario.status === 'PENDENTE_CONFIRMACAO',
     };
   }
 }

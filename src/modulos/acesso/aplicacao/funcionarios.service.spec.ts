@@ -22,7 +22,11 @@ const registro = {
   cargo: null,
   ativo: true,
   empresaId: 'e1',
-  usuario: { email: 'rafa@exemplo.com', perfil: { nome: 'Atendente' } },
+  usuario: {
+    email: 'rafa@exemplo.com',
+    status: 'ATIVA',
+    perfil: { id: 'p1', nome: 'Atendente' },
+  },
 };
 
 async function codigo(promessa: Promise<unknown>) {
@@ -58,6 +62,17 @@ describe('FuncionariosService', () => {
       },
       perfilAcesso: {
         findUnique: jest.fn().mockResolvedValue({ id: 'p1', empresaId: 'e1' }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'p1',
+            nome: 'Atendente',
+            descricao: null,
+            perfilPermissao: [
+              { permissao: { codigo: 'cliente:ler' } },
+              { permissao: { codigo: 'agenda:ler' } },
+            ],
+          },
+        ]),
       },
       empresaEnterprise: {
         findUniqueOrThrow: jest
@@ -101,9 +116,23 @@ describe('FuncionariosService', () => {
         email: 'rafa@exemplo.com',
         cargo: null,
         perfil: 'Atendente',
+        perfilId: 'p1',
         ativo: true,
+        pendente: false,
       },
     ]);
+  });
+
+  it('deve listar os perfis da empresa com as permissões (UC-16)', async () => {
+    expect(await servico.perfis(empresa, 'e1')).toEqual([
+      {
+        id: 'p1',
+        nome: 'Atendente',
+        descricao: undefined,
+        permissoes: ['agenda:ler', 'cliente:ler'],
+      },
+    ]);
+    expect(await codigo(servico.perfis(empresa, 'e2'))).toBe('SEM_PERMISSAO');
   });
 
   it('deve negar a equipe de outra empresa (RN24)', async () => {

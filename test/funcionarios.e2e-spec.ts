@@ -133,6 +133,19 @@ describe('UC-19 · Funcionários da empresa (API)', () => {
       .expect(403);
   });
 
+  it('deve listar os perfis da empresa para o cadastro', async () => {
+    const resposta = await comEmpresa(
+      http().get(`/v1/empresas/${empresaId}/perfis`),
+    ).expect(200);
+    const nomes = (resposta.body as { nome: string }[]).map((p) => p.nome);
+    expect(nomes).toEqual(
+      expect.arrayContaining(['Atendente', 'Profissional', 'Proprietário']),
+    );
+    await comEmpresa(
+      http().get(`/v1/empresas/${outraEmpresaId}/perfis`),
+    ).expect(403);
+  });
+
   it('deve listar só a equipe da própria empresa', async () => {
     const lista = await comEmpresa(
       http().get(`/v1/empresas/${empresaId}/funcionarios`),
