@@ -265,6 +265,7 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET` e `POST /v1/pets/{petId}/tratamentos` | Tratamentos medicamentosos (UC-14). O cadastro agenda um lembrete por dose para cada responsável do pet (RN18, CT-14-01), da `horaPrimeiraDose` (padrão 8h) até o fim do último dia; sem data de fim, os próximos 30 dias, no máximo 120 doses. |
 | `POST /v1/tratamentos/{tratamentoId}/finalizacao` | Finaliza hoje e cancela os lembretes que ainda não saíram (CT-14-02). |
 | `GET` e `POST /v1/pets/{petId}/exames` | Histórico e registro de exames (UC-36), com laudo opcional que é um documento do próprio pet. A resposta diz só se há arquivo; o download sai por URL assinada. A empresa precisa dos escopos `EXAMES` e `EDICAO_CLINICA` para registrar (CT-36-02). |
+| `GET` e `POST /v1/pets/{petId}/alergias`, `PATCH` e `DELETE /v1/alergias/{id}` | Alergias e restrições (UC-37), as graves primeiro e com `destaque` (CT-37-01). Alterar e excluir são edição clínica: a empresa precisa de `ALERGIAS` e `EDICAO_CLINICA` (CT-37-02). |
 
 
 ## Calendário do pet (UC-10)
