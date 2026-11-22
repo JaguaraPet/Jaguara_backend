@@ -17,3 +17,23 @@ export class RenovacaoDto {
   @MaxLength(255)
   refreshToken: string;
 }
+
+export class RecuperacaoSenhaDto {
+  @IsEmail({}, { message: 'Informe um e-mail válido' })
+  @MaxLength(255)
+  email: string;
+}
+
+export class RedefinicaoSenhaDto {
+  @IsString()
+  @IsNotEmpty({
+    message: 'O link está incompleto. Abra de novo o link do e-mail.',
+  })
+  @MaxLength(255)
+  token: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Informe a nova senha' })
+  @MaxLength(128)
+  novaSenha: string;
+}

@@ -6,11 +6,36 @@ import {
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Autenticado } from '../../../compartilhado/auth/permissoes';
 import { AutenticacaoService, Tokens } from '../aplicacao/autenticacao.service';
-import { LoginDto, RenovacaoDto } from './autenticacao.dto';
+import { RecuperacaoSenhaService } from '../aplicacao/recuperacao-senha.service';
+import {
+  LoginDto,
+  RecuperacaoSenhaDto,
+  RedefinicaoSenhaDto,
+  RenovacaoDto,
+} from './autenticacao.dto';
 
 @Controller('auth')
 export class AutenticacaoController {
-  constructor(private readonly autenticacao: AutenticacaoService) {}
+  constructor(
+    private readonly autenticacao: AutenticacaoService,
+    private readonly recuperacao: RecuperacaoSenhaService,
+  ) {}
+
+  /** UC-03: pede o link de recuperação; a resposta não revela se o e-mail existe. */
+  @Publica()
+  @Post('senha/recuperacao')
+  @HttpCode(202)
+  async recuperarSenha(@Body() dto: RecuperacaoSenhaDto): Promise<void> {
+    await this.recuperacao.solicitar(dto.email);
+  }
+
+  /** UC-03: redefine a senha com o token do link (RN05, RN06). */
+  @Publica()
+  @Post('senha/redefinicao')
+  @HttpCode(204)
+  async redefinirSenha(@Body() dto: RedefinicaoSenhaDto): Promise<void> {
+    await this.recuperacao.redefinir(dto.token, dto.novaSenha);
+  }
 
   /** UC-02: autenticar com e-mail e senha. */
   @Publica()
