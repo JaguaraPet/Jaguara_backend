@@ -289,12 +289,13 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET /v1/pets/{petId}/refeicoes?data=` | Refeições do dia de Brasília com consumo, percentual da meta e alerta de limite. |
 | `POST /v1/pets/{petId}/refeicoes` | Registra a refeição sempre; se o consumo do dia passa do limite, a resposta vem com `limiteExcedido: true` (CT-08-02). |
 
-## Despesas do pet (UC-06)
+## Despesas do pet e relatório (UC-06, UC-07)
 
 | Rota | Uso |
 |---|---|
 | `GET /v1/categorias-despesa` | Categorias padrão, criadas ou mantidas quando a API sobe (RN10). |
 | `GET` e `POST /v1/pets/{petId}/despesas` | Histórico com filtro por período (`de`, `ate`) e categoria, e registro com categoria obrigatória (CT-06-02). Só os responsáveis pelo pet, com `rotina:ler` e `rotina:editar`. |
+| `GET /v1/relatorios/despesas?de=&ate=&petId=` | Relatório do período (UC-07): total geral, total por categoria e as despesas; sem `petId`, todos os pets do tutor. Com `Accept: application/pdf` sai o arquivo (RN11, CT-07-01), gerado por `compartilhado/pdf` sem biblioteca externa. Período sem despesas responde 404 `RN11_SEM_DADOS` (CT-07-02). Cada emissão fica registrada em `relatorio`. |
 
 ## Privacidade e direitos do titular (UC-46)
 
