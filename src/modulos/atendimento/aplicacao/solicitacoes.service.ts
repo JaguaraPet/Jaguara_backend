@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
+import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
@@ -153,6 +154,58 @@ export class SolicitacoesService {
       orderBy: { dataHoraDesejada: 'asc' },
     });
     return solicitacoes.map((s) => this.resposta(s));
+  }
+
+  /**
+   * UC-41, CT-41-02: a recusa exige o motivo, que vai para o tutor e para o histórico (RN38).
+   * O aviso por e-mail fica com quem chama (AgendamentosService.avisarResposta).
+   */
+  async recusar(
+    usuario: UsuarioAutenticado,
+    solicitacaoId: string,
+    motivo: string,
+  ): Promise<void> {
+    const texto = motivo.trim();
+    if (texto.length < 3) {
+      throw Erros.dadosInvalidos(
+        'motivo',
+        'Explique ao tutor o motivo da recusa.',
+      );
+    }
+    const solicitacao = await this.prisma.solicitacaoServico.findUnique({
+      where: { id: solicitacaoId },
+      include: { servico: { select: { empresaId: true } } },
+    });
+    if (!solicitacao) throw Erros.naoEncontrado('Solicitação não encontrada');
+    garantirMesmaEmpresa(usuario, solicitacao.servico.empresaId);
+    const agora = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.solicitacaoServico.updateMany({
+        where: { id: solicitacaoId, status: 'PENDENTE' },
+        data: { status: 'RECUSADA', motivoRecusa: texto },
+      });
+      if (count === 0) {
+        throw Erros.conflito(
+          'SOLICITACAO_RESPONDIDA',
+          'Esta solicitação já foi respondida.',
+        );
+      }
+      await tx.historicoSolicitacao.create({
+        data: {
+          solicitacaoId,
+          dataHora: agora,
+          statusAnterior: 'PENDENTE',
+          statusNovo: 'RECUSADA',
+          descricao: texto,
+          autorId: usuario.sub,
+        },
+      });
+    });
+    await this.webhooks.publicar('solicitacao.status_alterado', {
+      solicitacaoId,
+      empresaId: solicitacao.servico.empresaId,
+      status: 'RECUSADA',
+    });
   }
 
   /** Janelas de atuação do dia e agendamentos ativos de cada profissional ou recurso. */

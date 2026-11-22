@@ -8,7 +8,8 @@ export type TipoEmail =
   | 'AGENDAMENTO_CRIADO'
   | 'PAGAMENTO_CONFIRMADO'
   | 'COMPARTILHAMENTO_PET'
-  | 'NOTIFICACAO';
+  | 'NOTIFICACAO'
+  | 'SOLICITACAO_RESPONDIDA';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -52,6 +53,15 @@ export interface DadosEmail {
     validade: string | null;
   };
   NOTIFICACAO: { titulo: string; mensagem: string };
+  SOLICITACAO_RESPONDIDA: {
+    nome: string;
+    empresa: string;
+    pet: string;
+    servico: string;
+    dataHora: string;
+    aceita: boolean;
+    motivo?: string;
+  };
 }
 
 export interface PedidoEmail<T extends TipoEmail = TipoEmail> {
@@ -67,6 +77,7 @@ export interface MensagemEmail {
   html: string;
 }
 
+const SEPARADOR = String.fromCharCode(10).repeat(2);
 const COR_PRIMARIA = '#8A4B0F';
 const COR_TEXTO = '#1E1B18';
 const COR_TEXTO_SECUNDARIO = '#5C554E';
@@ -306,6 +317,36 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
         html: layout(
           escaparHtml(d.titulo),
           [escaparHtml(d.mensagem)],
+          null,
+          rodape,
+        ),
+      };
+    }
+    case 'SOLICITACAO_RESPONDIDA': {
+      const d = pedido.dados as DadosEmail['SOLICITACAO_RESPONDIDA'];
+      const pedidoTexto = `${d.servico} para ${d.pet} em ${d.dataHora}`;
+      const frase = d.aceita
+        ? `${d.empresa} aceitou o pedido de ${pedidoTexto}. O horário está confirmado.`
+        : `${d.empresa} não pôde aceitar o pedido de ${pedidoTexto}.`;
+      const motivo = !d.aceita && d.motivo ? `Motivo: ${d.motivo}` : null;
+      const rodape = d.aceita
+        ? 'Acompanhe e cancele pelo app do Jaguara.'
+        : 'Você pode escolher outro horário ou outra empresa pelo app.';
+      return {
+        para: pedido.para,
+        assunto: d.aceita
+          ? `Pedido aceito: ${d.servico} para ${d.pet}`
+          : `Pedido não aceito: ${d.servico} para ${d.pet}`,
+        texto: [`Olá, ${d.nome}!`, frase, motivo, rodape]
+          .filter(Boolean)
+          .join(SEPARADOR),
+        html: layout(
+          d.aceita ? 'Pedido aceito' : 'Pedido não aceito',
+          [
+            `Olá, ${escaparHtml(d.nome)}!`,
+            escaparHtml(frase),
+            ...(motivo ? [escaparHtml(motivo)] : []),
+          ],
           null,
           rodape,
         ),
