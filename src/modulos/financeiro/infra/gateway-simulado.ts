@@ -3,6 +3,7 @@ import {
   GatewayPagamento,
   MetodoPagamento,
   SituacaoCobranca,
+  vencimentoBoleto,
 } from '../dominio/pagamento';
 
 /** Token de cartão de teste que o gateway simulado recusa (CT-44-02). */
@@ -10,7 +11,7 @@ export const CARTAO_RECUSADO = 'cartao-teste-recusado';
 
 /**
  * Gateway usado sem credenciais (desenvolvimento e testes): guarda as cobranças em memória.
- * O PIX fica pendente até `pagarPix`, como se o tutor pagasse no banco; o cartão de teste
+ * O PIX e o boleto ficam pendentes até `pagarPix`, como se o tutor pagasse no banco; o cartão de teste
  * `cartao-teste-recusado` é recusado e os demais são aprovados.
  */
 export class GatewaySimulado implements GatewayPagamento {
@@ -37,13 +38,24 @@ export class GatewaySimulado implements GatewayPagamento {
             detalhe: 'pending_waiting_transfer',
             qrCode: `00020126580014br.gov.bcb.pix-SIMULADO-${codigoTransacao}-${pedido.valor.toFixed(2)}`,
           }
-        : pedido.cartao?.token === CARTAO_RECUSADO
+        : pedido.metodo === 'BOLETO'
           ? {
               codigoTransacao,
-              status: 'RECUSADO',
-              detalhe: 'cc_rejected_insufficient_amount',
+              status: 'PENDENTE',
+              detalhe: 'pending_waiting_payment',
+              boleto: {
+                url: `https://boleto.simulado.invalid/${codigoTransacao}`,
+                linhaDigitavel: `23790.00009 ${codigoTransacao.slice(0, 5)}.${codigoTransacao.slice(5)}0 00000.000000 1 ${String(Math.round(pedido.valor * 100)).padStart(10, '0')}`,
+                vencimento: vencimentoBoleto(new Date()),
+              },
             }
-          : { codigoTransacao, status: 'ACEITO', detalhe: 'accredited' };
+          : pedido.cartao?.token === CARTAO_RECUSADO
+            ? {
+                codigoTransacao,
+                status: 'RECUSADO',
+                detalhe: 'cc_rejected_insufficient_amount',
+              }
+            : { codigoTransacao, status: 'ACEITO', detalhe: 'accredited' };
     this.cobrancas.set(codigoTransacao, situacao);
     this.porPagamento.set(pedido.pagamentoId, codigoTransacao);
     return Promise.resolve(situacao);
@@ -53,7 +65,7 @@ export class GatewaySimulado implements GatewayPagamento {
     return Promise.resolve(this.cobrancas.get(codigoTransacao) ?? null);
   }
 
-  /** Simula o tutor pagando o PIX no banco. */
+  /** Simula o tutor pagando o PIX ou o boleto no banco. */
   pagarPix(codigoTransacao: string) {
     const cobranca = this.cobrancas.get(codigoTransacao);
     if (cobranca) cobranca.status = 'ACEITO';

@@ -1,3 +1,5 @@
+import type { ConfigService } from '@nestjs/config';
+import { Cifragem } from '../../../compartilhado/cripto/cifragem';
 import type { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
@@ -19,6 +21,16 @@ describe('PagamentosService (UC-44, RN39)', () => {
     permissoes: ['pagamento:realizar'],
   };
   const decimal = (v: number) => ({ toNumber: () => v });
+  const CHAVE = Buffer.alloc(32, 7).toString('base64');
+  const cifragem = new Cifragem(CHAVE);
+  const endereco = {
+    cep: '01310100',
+    logradouro: 'Avenida Paulista',
+    numero: '1000',
+    bairro: 'Bela Vista',
+    cidade: 'São Paulo',
+    uf: 'SP',
+  };
   const base = {
     id: 'p1',
     codigoTransacao: '123',
@@ -61,6 +73,21 @@ describe('PagamentosService (UC-44, RN39)', () => {
           .fn()
           .mockResolvedValue({ email: 'ana@exemplo.com' }),
       },
+      tutor: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 't1',
+          nome: 'Ana Souza',
+          cpfCifrado: cifragem.cifrar('52998224725'),
+          enderecoCep: null,
+          enderecoLogradouro: null,
+          enderecoNumero: null,
+          enderecoComplemento: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoUf: null,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
     };
     const gateway = {
       nome: 'teste',
@@ -92,6 +119,7 @@ describe('PagamentosService (UC-44, RN39)', () => {
       gateway,
       assinaturas as unknown as AssinaturasService,
       { publicar: jest.fn() } as unknown as PublicadorWebhook,
+      { get: () => CHAVE } as unknown as ConfigService<never, true>,
     );
     return { prisma, gateway, politica, fila, emitir, servico, assinaturas };
   };
@@ -130,6 +158,7 @@ describe('PagamentosService (UC-44, RN39)', () => {
     expect(await codigo(servico.iniciar(tutor, { metodo: 'PIX' }))).toBe(
       'DADOS_INVALIDOS',
     );
+    // Boleto sem endereço no pedido nem no cadastro.
     expect(
       await codigo(
         servico.iniciar(tutor, { agendamentoId: 'a1', metodo: 'BOLETO' }),
@@ -161,6 +190,82 @@ describe('PagamentosService (UC-44, RN39)', () => {
         servico.iniciar(tutor, { agendamentoId: 'a1', metodo: 'PIX' }),
       ),
     ).toBe('NAO_ENCONTRADO');
+  });
+
+  it('deve emitir o boleto com CPF e endereço do tutor e guardar o endereço', async () => {
+    const { prisma, gateway, servico } = montar();
+    gateway.criarCobranca.mockResolvedValueOnce({
+      codigoTransacao: '456',
+      status: 'PENDENTE',
+      boleto: {
+        url: 'https://mp.exemplo/boleto/456',
+        linhaDigitavel: '23793.38128 60000.000003',
+        vencimento: '2026-11-23T23:59:59.000-03:00',
+      },
+    });
+    const pagamento = await servico.iniciar(tutor, {
+      agendamentoId: 'a1',
+      metodo: 'BOLETO',
+      endereco,
+    });
+    expect(pagamento.boleto).toMatchObject({
+      url: 'https://mp.exemplo/boleto/456',
+    });
+    expect(gateway.criarCobranca).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metodo: 'BOLETO',
+        cartao: undefined,
+        pagador: { nome: 'Ana Souza', cpf: '52998224725', endereco },
+      }),
+    );
+    expect(prisma.tutor.update).toHaveBeenCalledWith({
+      where: { id: 't1' },
+      data: expect.objectContaining({
+        enderecoCep: '01310100',
+        enderecoUf: 'SP',
+      }) as unknown,
+    });
+  });
+
+  it('deve devolver o boleto em aberto em vez de emitir outro', async () => {
+    const { prisma, gateway, servico } = montar();
+    prisma.tutor.findUnique.mockResolvedValueOnce({
+      id: 't1',
+      nome: 'Ana Souza',
+      cpfCifrado: cifragem.cifrar('52998224725'),
+      enderecoCep: '01310100',
+      enderecoLogradouro: 'Avenida Paulista',
+      enderecoNumero: '1000',
+      enderecoComplemento: null,
+      enderecoBairro: 'Bela Vista',
+      enderecoCidade: 'São Paulo',
+      enderecoUf: 'SP',
+    });
+    prisma.pagamento.findFirst.mockResolvedValueOnce({
+      ...base,
+      metodo: 'BOLETO',
+      codigoTransacao: '456',
+    });
+    gateway.consultar.mockResolvedValueOnce({
+      codigoTransacao: '456',
+      status: 'PENDENTE',
+      boleto: {
+        url: 'https://mp.exemplo/boleto/456',
+        linhaDigitavel: '23793.38128',
+        vencimento: '2026-11-23T23:59:59.000-03:00',
+      },
+    });
+    const pagamento = await servico.iniciar(tutor, {
+      agendamentoId: 'a1',
+      metodo: 'BOLETO',
+    });
+    expect(pagamento).toMatchObject({
+      codigoTransacao: '456',
+      metodo: 'BOLETO',
+      boleto: { url: 'https://mp.exemplo/boleto/456' },
+    });
+    expect(gateway.criarCobranca).not.toHaveBeenCalled();
+    expect(prisma.tutor.update).not.toHaveBeenCalled();
   });
 
   it('deve manter o pagamento pendente quando o gateway não responde', async () => {

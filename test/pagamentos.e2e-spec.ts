@@ -22,6 +22,7 @@ interface Pagamento {
   status: string;
   valor: number;
   qrCode?: string;
+  boleto?: { url: string; linhaDigitavel: string; vencimento: string };
   motivoRecusa?: string;
 }
 
@@ -36,6 +37,7 @@ describe('UC-44 · Pagamento com webhook de confirmação (API)', () => {
   let empresa: Socket;
   let banho: string;
   let tosa: string;
+  let vacina: string;
   const emails: string[] = [];
 
   const http = () => request(app.getHttpServer());
@@ -129,6 +131,7 @@ describe('UC-44 · Pagamento com webhook de confirmação (API)', () => {
     };
     banho = await agendar('Banho', 60, 48);
     tosa = await agendar('Tosa', 80, 72);
+    vacina = await agendar('Vacina', 120, 96);
 
     const url = (await app.getUrl()).replace('[::1]', 'localhost');
     empresa = io(`${url}/tempo-real`, {
@@ -207,6 +210,47 @@ describe('UC-44 · Pagamento com webhook de confirmação (API)', () => {
       parcelas: 2,
     }).expect(201);
     expect(aprovado.body).toMatchObject({ status: 'ACEITO', valor: 80 });
+  });
+
+  it('deve emitir o boleto com o endereço, reaproveitá-lo e aceitar na compensação', async () => {
+    const semEndereco = await pagar({
+      agendamentoId: vacina,
+      metodo: 'BOLETO',
+    }).expect(422);
+    expect(semEndereco.body).toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+
+    const criado = await pagar({
+      agendamentoId: vacina,
+      metodo: 'BOLETO',
+      endereco: {
+        cep: '01310100',
+        logradouro: 'Avenida Paulista',
+        numero: '1000',
+        bairro: 'Bela Vista',
+        cidade: 'São Paulo',
+        uf: 'SP',
+      },
+    }).expect(201);
+    const boleto = criado.body as Pagamento;
+    expect(boleto).toMatchObject({ status: 'PENDENTE', valor: 120 });
+    expect(boleto.boleto?.linhaDigitavel).toBeTruthy();
+
+    // O endereço ficou guardado e o boleto em aberto volta igual.
+    const deNovo = await pagar({
+      agendamentoId: vacina,
+      metodo: 'BOLETO',
+    }).expect(201);
+    expect(deNovo.body).toMatchObject({
+      id: boleto.id,
+      codigoTransacao: boleto.codigoTransacao,
+    });
+
+    gateway.pagarPix(boleto.codigoTransacao);
+    await webhook(boleto.codigoTransacao).expect(200);
+    expect(
+      (await prisma.pagamento.findUniqueOrThrow({ where: { id: boleto.id } }))
+        .status,
+    ).toBe('ACEITO');
   });
 
   it('deve recusar pedido sem dados do cartão, sem assinatura e de quem não é tutor', async () => {

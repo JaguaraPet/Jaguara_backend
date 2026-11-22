@@ -55,6 +55,76 @@ describe('gateways de pagamento', () => {
     });
   });
 
+  it('deve emitir o boleto registrado com CPF e endereço do pagador', async () => {
+    const buscar = jest.fn().mockResolvedValue(
+      resposta(201, {
+        id: 456,
+        status: 'pending',
+        status_detail: 'pending_waiting_payment',
+        date_of_expiration: '2026-11-23T23:59:59.000-03:00',
+        barcode: { content: '23791234500000060003381260000000000000000000' },
+        transaction_details: {
+          external_resource_url: 'https://mp.exemplo/boleto/456',
+          digitable_line:
+            '23793.38128 60000.000003 00000.000000 1 12345000006000',
+        },
+      }),
+    );
+    const gateway = new GatewayMercadoPago(
+      'TEST-token',
+      undefined,
+      'https://mp.exemplo',
+      buscar,
+    );
+    await expect(
+      gateway.criarCobranca({
+        pagamentoId: 'p3',
+        valor: 60,
+        metodo: 'BOLETO',
+        descricao: 'Banho - Thor',
+        emailPagador: 'ana@exemplo.com',
+        pagador: {
+          nome: 'Ana Maria Souza',
+          cpf: '52998224725',
+          endereco: {
+            cep: '01310100',
+            logradouro: 'Avenida Paulista',
+            numero: '1000',
+            bairro: 'Bela Vista',
+            cidade: 'São Paulo',
+            uf: 'SP',
+          },
+        },
+      }),
+    ).resolves.toMatchObject({
+      codigoTransacao: '456',
+      status: 'PENDENTE',
+      boleto: {
+        url: 'https://mp.exemplo/boleto/456',
+        linhaDigitavel:
+          '23793.38128 60000.000003 00000.000000 1 12345000006000',
+        vencimento: '2026-11-23T23:59:59.000-03:00',
+      },
+    });
+    const corpo = JSON.parse(
+      (buscar.mock.calls[0] as [string, RequestInit])[1].body as string,
+    ) as Record<string, unknown>;
+    expect(corpo).toMatchObject({
+      payment_method_id: 'bolbradesco',
+      payer: {
+        email: 'ana@exemplo.com',
+        first_name: 'Ana',
+        last_name: 'Maria Souza',
+        identification: { type: 'CPF', number: '52998224725' },
+        address: { zip_code: '01310100', federal_unit: 'SP' },
+      },
+    });
+    expect(corpo.date_of_expiration).toMatch(
+      /^\d{4}-\d{2}-\d{2}T23:59:59\.000-03:00$/,
+    );
+    expect(corpo).not.toHaveProperty('token');
+  });
+
   it('deve mandar só o token do cartão e consultar o status', async () => {
     const buscar = jest
       .fn()
@@ -141,6 +211,17 @@ describe('gateways de pagamento', () => {
       cartao: { token: CARTAO_RECUSADO },
     });
     expect(recusado.status).toBe('RECUSADO');
+    const boleto = await simulado.criarCobranca({
+      pagamentoId: 'p3',
+      valor: 60,
+      metodo: 'BOLETO',
+    });
+    expect(boleto.status).toBe('PENDENTE');
+    expect(boleto.boleto?.linhaDigitavel).toMatch(/^23790/);
+    simulado.pagarPix(boleto.codigoTransacao);
+    await expect(
+      simulado.consultar(boleto.codigoTransacao),
+    ).resolves.toMatchObject({ status: 'ACEITO' });
     await expect(simulado.consultar('0')).resolves.toBeNull();
   });
 });

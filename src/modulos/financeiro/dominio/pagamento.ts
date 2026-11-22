@@ -13,6 +13,44 @@ export interface SituacaoCobranca {
   /** Código do provedor que explica a recusa (ex.: cc_rejected_insufficient_amount). */
   detalhe?: string;
   qrCode?: string;
+  /** Boleto emitido: link para abrir ou imprimir, linha digitável e vencimento. */
+  boleto?: DadosBoleto;
+}
+
+export interface DadosBoleto {
+  url: string;
+  linhaDigitavel: string;
+  vencimento: string;
+}
+
+/** Endereço do pagador, exigido pelo banco para registrar o boleto. */
+export interface EnderecoPagador {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+/** Quem paga o boleto: nome, CPF e endereço vão para o registro no banco. */
+export interface PagadorBoleto {
+  nome: string;
+  cpf: string;
+  endereco: EnderecoPagador;
+}
+
+/** Dias corridos até o vencimento do boleto. */
+export const DIAS_VENCIMENTO_BOLETO = 3;
+
+/** Vencimento do boleto no fim do dia, no horário de Brasília (o formato que o gateway pede). */
+export function vencimentoBoleto(agora: Date): string {
+  const dia = new Date(agora.getTime() + DIAS_VENCIMENTO_BOLETO * 86_400_000);
+  const data = dia.toLocaleDateString('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+  });
+  return `${data}T23:59:59.000-03:00`;
 }
 
 /** Porta do gateway (ARQ-03, seção 3.1). Os dados do cartão nunca passam pela API: só o token. */
@@ -25,6 +63,8 @@ export interface GatewayPagamento {
     descricao: string;
     emailPagador: string;
     cartao?: { token: string; bandeira: string; parcelas: number };
+    /** Obrigatório no boleto. */
+    pagador?: PagadorBoleto;
   }): Promise<SituacaoCobranca>;
   consultar(codigoTransacao: string): Promise<SituacaoCobranca | null>;
 }
