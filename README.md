@@ -314,6 +314,10 @@ Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `A
 
 `GET /v1/empresas/{empresaId}/relatorios/{tipo}?de=&ate=` gera o relatório só com os dados da própria empresa e registra a emissão em `relatorio`. `atendimentos` (operacional) traz os agendamentos do período por status, serviço e profissional e a taxa de comparecimento; `financeiro` (gerencial) traz faturamento, ticket médio, pendentes e totais por serviço e método. Todos exigem `relatorio:ler`, e o financeiro também `financeiro:ler`: sem a permissão, 403 (CT-18-02). Com `Accept: application/pdf` sai o arquivo, pelo mesmo gerador do relatório de despesas.
 
+## Indicadores de BI (UC-17, RN21)
+
+`GET /v1/empresas/{empresaId}/indicadores?de=&ate=` (período de até um ano, `relatorio:ler`) traz atendimentos realizados, faturamento confirmado, taxa de aceite das solicitações respondidas, os cinco serviços mais pedidos e os atendimentos por dia. Só a própria empresa vê os seus números; outra empresa e o administrador da plataforma recebem 403 (CT-17-02).
+
 ## Gestão de contas (UC-28, RN34)
 
 Rotas do administrador com `admin:usuarios`: `GET /v1/admin/usuarios?busca=&status=` busca por nome ou e-mail, `GET /v1/admin/usuarios/{id}` mostra o perfil, as sessões ativas e as últimas mudanças de status, e `PUT /v1/admin/usuarios/{id}/status` suspende, bloqueia ou reativa com motivo obrigatório. A mudança e o registro na auditoria (`CONTA_SUSPENSA`, `CONTA_BLOQUEADA`, `CONTA_REATIVADA`) vão na mesma transação: se a auditoria falhar, nada muda e a API responde 503 `RN34_AUDITORIA_INDISPONIVEL` (CT-28-02). Bloquear ou suspender encerra as sessões da conta; reativar zera as tentativas de login. A própria conta, contas pendentes de confirmação e contas excluídas não mudam (409 `RN34_STATUS_INVALIDO`).
