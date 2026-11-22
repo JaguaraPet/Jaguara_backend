@@ -148,6 +148,19 @@ export class PetsService {
     });
   }
 
+  /** Desfaz o arquivamento: o pet volta para a lista de ativos. Pet falecido não volta. */
+  async desarquivar(usuario: UsuarioAutenticado, petId: string): Promise<void> {
+    const pet = await this.buscar(petId);
+    await this.garantirPrincipal(usuario, petId);
+    if (pet.status !== 'ARQUIVADO') {
+      throw Erros.conflito('PET_NAO_ARQUIVADO', 'Este pet não está arquivado.');
+    }
+    await this.prisma.pet.update({
+      where: { id: petId },
+      data: { status: 'ATIVO' },
+    });
+  }
+
   /** CT-04-02: com histórico clínico ou financeiro, não exclui e indica o arquivamento (RN08). */
   async excluir(usuario: UsuarioAutenticado, petId: string): Promise<void> {
     await this.buscar(petId);
@@ -184,7 +197,7 @@ export class PetsService {
       (await this.politica.nivel(usuario, petId)) !== 'RESPONSAVEL_PRINCIPAL'
     ) {
       throw Erros.semPermissao(
-        'Só o responsável principal arquiva ou exclui o pet.',
+        'Só o responsável principal arquiva, desarquiva ou exclui o pet.',
       );
     }
   }

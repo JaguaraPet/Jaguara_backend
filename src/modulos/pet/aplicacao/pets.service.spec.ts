@@ -190,6 +190,32 @@ describe('PetsService', () => {
     politica.nivel.mockResolvedValue('RESPONSAVEL');
     expect(await codigo(servico.arquivar(tutor, 'p1'))).toBe('SEM_PERMISSAO');
   });
+
+  it('deve desarquivar só o pet arquivado, pelo responsável principal', async () => {
+    expect(await codigo(servico.desarquivar(tutor, 'p1'))).toBe(
+      'PET_NAO_ARQUIVADO',
+    );
+    prisma.pet.findUnique.mockResolvedValue({
+      ...petBanco,
+      status: 'ARQUIVADO',
+    });
+    await servico.desarquivar(tutor, 'p1');
+    expect(prisma.pet.update).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { status: 'ATIVO' },
+    });
+    prisma.pet.findUnique.mockResolvedValue({
+      ...petBanco,
+      status: 'FALECIDO',
+    });
+    expect(await codigo(servico.desarquivar(tutor, 'p1'))).toBe(
+      'PET_NAO_ARQUIVADO',
+    );
+    politica.nivel.mockResolvedValue('RESPONSAVEL');
+    expect(await codigo(servico.desarquivar(tutor, 'p1'))).toBe(
+      'SEM_PERMISSAO',
+    );
+  });
 });
 
 describe('PoliticaAcessoPet', () => {
