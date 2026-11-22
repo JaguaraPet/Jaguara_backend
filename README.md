@@ -140,6 +140,7 @@ A regra de acesso ao pet fica em um lugar só, a `PoliticaAcessoPet` (ADR-012, p
 | Rota | Uso |
 |---|---|
 | `GET /v1/empresas/{empresaId}/funcionarios` | Lista a equipe (permissão `funcionario:ler`). |
+| `GET /v1/empresas/{empresaId}/perfis` | Perfis de acesso da empresa com as permissões de cada um, para escolher no cadastro e na troca de perfil (`funcionario:ler`). A criação e a edição de perfis vêm com a UC-16. |
 | `POST /v1/empresas/{empresaId}/funcionarios` | Cadastra com um perfil da própria empresa e envia o convite por e-mail. O funcionário confirma o e-mail e cria a senha em `POST /v1/auth/confirmacao` (campo `senha`). |
 | `PATCH /v1/funcionarios/{funcionarioId}` | Troca o perfil de acesso (UC-16) e encerra as sessões abertas, para as permissões novas valerem na hora. |
 | `DELETE /v1/funcionarios/{funcionarioId}` | Desliga o funcionário: conta inativa e todas as sessões revogadas na hora (RN23). |

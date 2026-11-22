@@ -28,6 +28,7 @@ import { UsuarioAtual } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import {
   Funcionario,
+  PerfilDaEmpresa,
   FuncionariosService,
 } from '../aplicacao/funcionarios.service';
 
@@ -72,6 +73,16 @@ export class FuncionariosController {
     @Param('empresaId', ParseUUIDPipe) empresaId: string,
   ): Promise<Funcionario[]> {
     return this.funcionarios.listar(usuario, empresaId);
+  }
+
+  /** UC-19 e UC-16: perfis de acesso da empresa para escolher no cadastro. */
+  @Permissoes('funcionario:ler')
+  @Get('empresas/:empresaId/perfis')
+  perfis(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('empresaId', ParseUUIDPipe) empresaId: string,
+  ): Promise<PerfilDaEmpresa[]> {
+    return this.funcionarios.perfis(usuario, empresaId);
   }
 
   /** UC-19: cadastra e convida por e-mail. */
