@@ -45,3 +45,9 @@ export function tokenUtilizavel(
 ): boolean {
   return !token.utilizado && token.expiraEm > agora;
 }
+
+/** O link de recuperação de senha vale no máximo 2 horas e uma única vez (RN05). */
+export const MINUTOS_VALIDADE_RECUPERACAO = 120;
+
+/** RN06: quantas senhas anteriores não podem voltar. */
+export const SENHAS_ANTERIORES_BLOQUEADAS = 3;
