@@ -73,7 +73,10 @@ describe('UC-36 · Exames do pet (API)', () => {
       http().get(`/v1/pets/${petId}/exames`),
     ).expect(200);
     expect(lista.body).toEqual([
-      expect.objectContaining({ tipoExame: 'Hemograma completo' }),
+      expect.objectContaining({
+        tipoExame: 'Hemograma completo',
+        documentoId: laudoId,
+      }),
     ]);
     expect(JSON.stringify(lista.body)).not.toContain('s3://');
   });
