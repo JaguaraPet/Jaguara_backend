@@ -10,12 +10,16 @@ import { AutenticacaoController } from './http/autenticacao.controller';
 import { CadastroController } from './http/cadastro.controller';
 import { FuncionariosController } from './http/funcionarios.controller';
 
+import { PerfisService } from './aplicacao/perfis.service';
+import { PerfisController } from './http/perfis.controller';
+
 @Module({
   imports: [NotificacaoModule, AtendimentoModule],
   controllers: [
     AutenticacaoController,
     CadastroController,
     FuncionariosController,
+    PerfisController,
   ],
   providers: [
     AutenticacaoService,
@@ -23,6 +27,7 @@ import { FuncionariosController } from './http/funcionarios.controller';
     CadastroService,
     CatalogoAcessoService,
     FuncionariosService,
+    PerfisService,
   ],
   exports: [AutenticacaoService, CatalogoAcessoService],
 })
