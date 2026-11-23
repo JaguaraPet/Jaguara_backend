@@ -149,7 +149,7 @@ const TUTOR: CodigoPermissao[] = [
   'privacidade:solicitar',
 ];
 
-const EMPRESA_TODAS: CodigoPermissao[] = [
+export const EMPRESA_TODAS: CodigoPermissao[] = [
   'empresa:editar',
   'funcionario:ler',
   'funcionario:editar',
