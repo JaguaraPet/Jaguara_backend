@@ -34,7 +34,23 @@ export class ExamesService {
       include: { registroClinico: true },
       orderBy: { dataRealizacao: 'desc' },
     });
-    return exames.map((e) => this.resposta(e));
+    // O laudo é um documento do pet: o id permite baixar por GET /documentos/{id}/download.
+    const chaves = exames
+      .map((e) => e.arquivoResultadoUrl)
+      .filter((c): c is string => !!c);
+    const documentos = chaves.length
+      ? await this.prisma.documentoPet.findMany({
+          where: { petId, arquivoUrl: { in: chaves } },
+          select: { id: true, arquivoUrl: true },
+        })
+      : [];
+    const idDoArquivo = new Map(documentos.map((d) => [d.arquivoUrl, d.id]));
+    return exames.map((e) => ({
+      ...this.resposta(e),
+      documentoId: e.arquivoResultadoUrl
+        ? idDoArquivo.get(e.arquivoResultadoUrl)
+        : undefined,
+    }));
   }
 
   /**

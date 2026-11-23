@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
 import { AlergiasService } from './aplicacao/alergias.service';
+import { DocumentosService } from './aplicacao/documentos.service';
 import { ExamesService } from './aplicacao/exames.service';
 import { LinhaDoTempoService } from './aplicacao/linha-do-tempo.service';
 import { PetsVinculadosService } from './aplicacao/pets-vinculados.service';
@@ -9,6 +10,7 @@ import { PoliticaSaude } from './aplicacao/politica-saude';
 import { TratamentosService } from './aplicacao/tratamentos.service';
 import { VacinacoesService } from './aplicacao/vacinacoes.service';
 import { AlergiasController } from './http/alergias.controller';
+import { DocumentosController } from './http/documentos.controller';
 import { ExamesController } from './http/exames.controller';
 import { LinhaDoTempoController } from './http/linha-do-tempo.controller';
 import { PetsVinculadosController } from './http/pets-vinculados.controller';
@@ -24,6 +26,7 @@ import { VacinacoesController } from './http/vacinacoes.controller';
     AlergiasController,
     LinhaDoTempoController,
     PetsVinculadosController,
+    DocumentosController,
   ],
   providers: [
     PoliticaSaude,
@@ -33,6 +36,7 @@ import { VacinacoesController } from './http/vacinacoes.controller';
     AlergiasService,
     LinhaDoTempoService,
     PetsVinculadosService,
+    DocumentosService,
   ],
   exports: [PoliticaSaude],
 })

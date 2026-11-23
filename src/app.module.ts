@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validarAmbiente } from './compartilhado/config/ambiente';
+import { ArquivosModule } from './compartilhado/arquivos/armazenamento';
 import { AuditoriaModule } from './compartilhado/auditoria/auditoria.module';
 import { AuthModule } from './compartilhado/auth/auth.module';
 import { FilasModule } from './compartilhado/filas/filas.module';
@@ -28,6 +29,7 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
     RedisModule,
     FilasModule,
     WebhooksModule,
+    ArquivosModule,
     AuthModule,
     AuditoriaModule,
     StatusModule,
