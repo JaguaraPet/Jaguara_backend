@@ -9,7 +9,8 @@ export type TipoEmail =
   | 'PAGAMENTO_CONFIRMADO'
   | 'COMPARTILHAMENTO_PET'
   | 'NOTIFICACAO'
-  | 'SOLICITACAO_RESPONDIDA';
+  | 'SOLICITACAO_RESPONDIDA'
+  | 'SOLICITACAO_CANCELADA';
 
 export interface DadosEmail {
   CONFIRMACAO_CADASTRO: { nome: string; link: string; validadeHoras: number };
@@ -61,6 +62,14 @@ export interface DadosEmail {
     dataHora: string;
     aceita: boolean;
     motivo?: string;
+  };
+  SOLICITACAO_CANCELADA: {
+    empresa: string;
+    tutor: string;
+    pet: string;
+    servico: string;
+    dataHora: string;
+    agendamentoDesfeito: boolean;
   };
 }
 
@@ -349,6 +358,28 @@ export function montarEmail(pedido: PedidoEmail): MensagemEmail {
           ],
           null,
           rodape,
+        ),
+      };
+    }
+    case 'SOLICITACAO_CANCELADA': {
+      const d = pedido.dados as DadosEmail['SOLICITACAO_CANCELADA'];
+      const frase = `${d.tutor} cancelou o pedido de ${d.servico} para ${d.pet} em ${d.dataHora}.`;
+      const horario = d.agendamentoDesfeito
+        ? 'O agendamento foi desfeito e o horário voltou a ficar livre na agenda.'
+        : 'O pedido ainda não tinha sido respondido.';
+      return {
+        para: pedido.para,
+        assunto: `Pedido cancelado: ${d.servico} para ${d.pet}`,
+        texto: [`Olá, ${d.empresa}!`, frase, horario].join(SEPARADOR),
+        html: layout(
+          'Pedido cancelado pelo tutor',
+          [
+            `Olá, ${escaparHtml(d.empresa)}!`,
+            escaparHtml(frase),
+            escaparHtml(horario),
+          ],
+          null,
+          'Veja as solicitações na web do Jaguara Enterprise.',
         ),
       };
     }
