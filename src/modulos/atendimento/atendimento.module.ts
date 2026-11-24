@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
+import { AcompanhamentoSolicitacoesService } from './aplicacao/acompanhamento-solicitacoes.service';
 import { AgendamentosService } from './aplicacao/agendamentos.service';
 import { AtendimentosService } from './aplicacao/atendimentos.service';
 import { CatalogoService } from './aplicacao/catalogo.service';
@@ -8,6 +9,7 @@ import { ClientesService } from './aplicacao/clientes.service';
 import { EmpresasPublicasService } from './aplicacao/empresas-publicas.service';
 import { HorariosService } from './aplicacao/horarios.service';
 import { SolicitacoesService } from './aplicacao/solicitacoes.service';
+import { AcompanhamentoController } from './http/acompanhamento.controller';
 import { AgendamentosController } from './http/agendamentos.controller';
 import { AtendimentosController } from './http/atendimentos.controller';
 import { CatalogoController } from './http/catalogo.controller';
@@ -28,6 +30,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     ConsentimentoClienteController,
     HorariosController,
     SolicitacoesController,
+    AcompanhamentoController,
     AgendamentosController,
     AtendimentosController,
   ],
@@ -39,6 +42,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     SolicitacoesService,
     AgendamentosService,
     AtendimentosService,
+    AcompanhamentoSolicitacoesService,
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })

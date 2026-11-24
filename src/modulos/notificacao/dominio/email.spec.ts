@@ -116,4 +116,21 @@ describe('montarEmail', () => {
     expect(recusada.texto).toContain('Motivo: Agenda cheia');
     expect(recusada.html).toContain('Pedido não aceito');
   });
+
+  it('deve avisar a empresa do cancelamento feito pelo tutor (UC-42)', () => {
+    const email = montarEmail({
+      tipo: 'SOLICITACAO_CANCELADA',
+      para: 'clinica@exemplo.com',
+      dados: {
+        empresa: 'Banho Cheiroso',
+        tutor: 'Ana',
+        pet: 'Thor',
+        servico: 'Banho',
+        dataHora: '25/11/2026 09:00',
+        agendamentoDesfeito: true,
+      },
+    });
+    expect(email.assunto).toBe('Pedido cancelado: Banho para Thor');
+    expect(email.texto).toContain('horário voltou a ficar livre');
+  });
 });
