@@ -53,6 +53,16 @@ export const esquemaAmbiente = z.object({
     (valor) => (valor === '' ? undefined : valor),
     z.url().optional(),
   ),
+
+  // Push pelo Expo (ARQ-03, UC-31). Desligado, o push é só registrado no log.
+  PUSH_EXPO: z.preprocess(
+    (valor) => valor === 'true' || valor === true,
+    z.boolean(),
+  ),
+  EXPO_ACCESS_TOKEN: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.string().optional(),
+  ),
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;
