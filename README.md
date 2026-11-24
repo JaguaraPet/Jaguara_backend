@@ -285,6 +285,12 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `POST /v1/pets/{petId}/eventos` | Cria o evento se o pet estiver livre (RN14, CT-10-02; evento sem fim ocupa uma hora) e agenda o lembrete uma hora antes para os responsáveis (CT-10-01). |
 | `DELETE /v1/eventos/{eventoId}` | Exclui o evento manual e cancela o lembrete. |
 
+
+### Google Agenda (UC-09, RN13)
+
+O tutor autoriza só a leitura do calendário: `POST /v1/calendario-externo/google/autorizacao` devolve o endereço de consentimento do Google, que volta para `GET /v1/calendario-externo/google/retorno` com o código e o estado assinado (10 minutos). A API guarda o token de atualização cifrado e devolve o tutor para o app em `<URL_APP>/calendario?resultado=conectado|negado|erro`; acesso negado não guarda nada (CT-09-02). `POST /v1/pets/{petId}/calendario-externo/sincronizacao` importa os compromissos dos próximos 30 dias para a agenda do pet (origem `CALENDARIO_EXTERNO`), atualiza os que mudaram e remove os que saíram (CT-09-01). `DELETE /v1/calendario-externo` desconecta e apaga os importados.
+
+Credenciais: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` de um cliente OAuth do tipo aplicativo da web, com o retorno `<URL_API_PUBLICA>/v1/calendario-externo/google/retorno` autorizado no Google Cloud. Sem elas, o calendário é simulado: a autorização volta direto para a API e a sincronização traz dois compromissos de exemplo.
 ## Alimentação do pet (UC-08)
 
 | Rota | Uso |

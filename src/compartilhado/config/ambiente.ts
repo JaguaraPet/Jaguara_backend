@@ -59,6 +59,15 @@ export const esquemaAmbiente = z.object({
     (valor) => valor === 'true' || valor === true,
     z.boolean(),
   ),
+  // Google Agenda (UC-09). Sem as duas, o calendário externo é simulado.
+  GOOGLE_CLIENT_ID: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.string().optional(),
+  ),
+  GOOGLE_CLIENT_SECRET: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.string().optional(),
+  ),
   EXPO_ACCESS_TOKEN: z.preprocess(
     (valor) => (valor === '' ? undefined : valor),
     z.string().optional(),
