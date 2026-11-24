@@ -55,7 +55,7 @@ As variáveis estão descritas no `.env.example` e são validadas na inicializa�
 
 ## Modelo de dados (Prisma)
 
-O schema `prisma/schema.prisma` representa as 57 tabelas e os 42 enums do MOD-03, com modelos em PascalCase e campos em camelCase mapeados para os nomes do banco (`@@map` e `@map`). A migração inicial `prisma/migrations/20261115120000_inicial` é o script validado do MOD-03 e inclui as restrições que o Prisma não expressa (CHECK e EXCLUDE contra agendamentos sobrepostos).
+O schema `prisma/schema.prisma` representa as 57 tabelas e os 42 enums do MOD-03, com modelos em PascalCase e campos em camelCase mapeados para os nomes do banco (`@@map` e `@map`). A migração inicial `prisma/migrations/20261115120000_inicial` é o script validado do MOD-03 e inclui as restrições que o Prisma não expressa (CHECK e EXCLUDE contra agendamentos sobrepostos). A migração `20261124090000_dispositivo_push` acrescenta a tabela dos aparelhos que recebem push (UC-31), fora do MOD-03: o banco fica com 58 tabelas.
 
 ```bash
 npm run prisma:deploy     # aplica as migrações no banco do DATABASE_URL
@@ -330,9 +330,12 @@ Rotas do administrador com `admin:usuarios`: `GET /v1/admin/usuarios?busca=&stat
 
 Vacinas, tratamentos e eventos agendam lembretes para os responsáveis do pet na tabela `notificacao` (status AGENDADA), com o canal e a antecedência que cada pessoa configurou para o tipo de compromisso (RN37). Sem configuração vale o padrão: push, um dia antes para vacina, cirurgia e hospedagem, uma hora antes para consultas e compromissos e na hora para remédios.
 
+Push (JAG-157): com `PUSH_EXPO=true`, o worker manda cada lembrete pelo serviço de push do Expo para todos os aparelhos do destinatário (`EXPO_ACCESS_TOKEN` é opcional). Aparelho desinstalado sai da lista; recusa do Expo conta como falha e entra nas novas tentativas. Sem aparelho registrado, a notificação fica só na lista do app. Com `PUSH_EXPO=false` (padrão em desenvolvimento e testes), o push só vai para o log.
+
 | Rota | Uso |
 |---|---|
 | `GET /v1/notificacoes` | As 50 notificações mais recentes do usuário, enviadas ou agendadas. |
+| `POST /v1/dispositivos` e `DELETE /v1/dispositivos/{token}` | O app registra o token de push do Expo depois do login e tira na saída; o mesmo aparelho com outra conta passa para a conta atual. |
 | `GET /v1/notificacoes/configuracoes` e `PUT .../{tipoEvento}` | Canal (push ou e-mail), antecedência de 0 a 7 dias e liga/desliga por tipo (CT-31-01). |
 
 O worker confere a cada minuto as notificações vencidas e envia por push ou pela fila de e-mail. Na falha, tenta de novo com espera de 1, 2, 4 e 8 minutos; na quinta falha, a notificação fica como FALHOU e vai para a auditoria com nível ALERTA (CT-31-02, DS-06). Enquanto o push do Expo não está ligado, o envio push só registra no log.

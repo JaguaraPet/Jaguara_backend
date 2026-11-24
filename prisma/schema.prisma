@@ -284,6 +284,19 @@ model Despesa {
   @@map("despesa")
 }
 
+model DispositivoPush {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token        String   @unique @db.VarChar(255)
+  plataforma   String   @db.VarChar(20)
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dispositivo_push_usuario_id")
+
+  @@index([usuarioId], map: "ix_dispositivo_push_usuario")
+  @@map("dispositivo_push")
+}
+
 model DocumentoPet {
   id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   titulo       String        @db.VarChar(255)
@@ -974,6 +987,7 @@ model Usuario {
   calendarioExterno       CalendarioExterno[]
   chamadoSuporte          ChamadoSuporte[]
   configuracaoNotificacao ConfiguracaoNotificacao[]
+  dispositivoPush         DispositivoPush[]
   consentimento           Consentimento[]
   empresaEnterprise       EmpresaEnterprise?
   eventoCalendario        EventoCalendario[]

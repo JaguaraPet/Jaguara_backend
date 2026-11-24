@@ -7,13 +7,17 @@ import { FILA_EMAIL, FilaEmailService } from './aplicacao/fila-email.service';
 import { NotificacoesController } from './http/notificacoes.controller';
 
 /** Lado da API: coloca notificações e e-mails nas filas. */
+import { DispositivosService } from './aplicacao/dispositivos.service';
+import { DispositivosController } from './http/dispositivos.controller';
+
 @Module({
   imports: [PrismaModule, BullModule.registerQueue({ name: FILA_EMAIL })],
-  controllers: [NotificacoesController],
+  controllers: [NotificacoesController, DispositivosController],
   providers: [
     FilaEmailService,
     AgendaNotificacoesService,
     ConfiguracoesNotificacaoService,
+    DispositivosService,
   ],
   exports: [FilaEmailService, AgendaNotificacoesService],
 })

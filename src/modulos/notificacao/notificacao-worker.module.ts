@@ -2,7 +2,9 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditoriaModule } from '../../compartilhado/auditoria/auditoria.module';
+import type { Ambiente } from '../../compartilhado/config/ambiente';
 import { PrismaModule } from '../../compartilhado/prisma/prisma.module';
+import { PrismaService } from '../../compartilhado/prisma/prisma.service';
 import { DisparoNotificacoesService } from './aplicacao/disparo-notificacoes.service';
 import { FILA_EMAIL, FilaEmailService } from './aplicacao/fila-email.service';
 import {
@@ -12,6 +14,7 @@ import {
 import { EmailProcessor } from './infra/email.processor';
 import { criarEnvioEmail, ENVIO_EMAIL } from './infra/envio-email';
 import { ENVIO_PUSH, EnvioPushSimulado } from './infra/envio-push';
+import { EnvioPushExpo } from './infra/envio-push-expo';
 
 /** Lado do worker: processa as filas de notificação e e-mail. */
 @Module({
@@ -26,7 +29,20 @@ import { ENVIO_PUSH, EnvioPushSimulado } from './infra/envio-push';
     FilaEmailService,
     DisparoNotificacoesService,
     DisparoNotificacoesProcessor,
-    { provide: ENVIO_PUSH, useClass: EnvioPushSimulado },
+    {
+      provide: ENVIO_PUSH,
+      inject: [ConfigService, PrismaService],
+      useFactory: (
+        config: ConfigService<Ambiente, true>,
+        prisma: PrismaService,
+      ) =>
+        config.get('PUSH_EXPO', { infer: true })
+          ? new EnvioPushExpo(
+              prisma,
+              config.get('EXPO_ACCESS_TOKEN', { infer: true }),
+            )
+          : new EnvioPushSimulado(),
+    },
     {
       provide: ENVIO_EMAIL,
       inject: [ConfigService],
