@@ -134,7 +134,7 @@ export const PERMISSOES = {
 
 export type CodigoPermissao = keyof typeof PERMISSOES;
 
-const TUTOR: CodigoPermissao[] = [
+export const TUTOR: CodigoPermissao[] = [
   'pet:ler',
   'pet:editar',
   'saude:ler',

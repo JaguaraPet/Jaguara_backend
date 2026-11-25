@@ -45,20 +45,21 @@ export class CatalogoAcessoService implements OnApplicationBootstrap {
       PERFIL_EMPRESA,
     ];
     for (const perfil of globais) {
-      const existente =
-        (await this.prisma.perfilAcesso.findFirst({
-          where: { nome: perfil.nome, escopo: 'GLOBAL', empresaId: null },
-        })) ??
-        (await this.prisma.perfilAcesso.create({
-          data: {
-            nome: perfil.nome,
-            descricao: perfil.descricao,
-            escopo: 'GLOBAL',
-          },
-        }));
+      const existente = await this.prisma.perfilAcesso.findFirst({
+        where: { nome: perfil.nome, escopo: 'GLOBAL', empresaId: null },
+      });
+      // As permissões padrão entram só na criação: depois, quem manda é o administrador (UC-29).
+      if (existente) continue;
+      const criado = await this.prisma.perfilAcesso.create({
+        data: {
+          nome: perfil.nome,
+          descricao: perfil.descricao,
+          escopo: 'GLOBAL',
+        },
+      });
       await this.prisma.perfilPermissao.createMany({
         data: perfil.permissoes.map((codigo) => ({
-          perfilAcessoId: existente.id,
+          perfilAcessoId: criado.id,
           permissaoId: ids.get(codigo)!,
         })),
         skipDuplicates: true,
