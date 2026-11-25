@@ -210,11 +210,13 @@ Ao abrir a conversa com o assistente, a primeira mensagem é o aviso fixo de que
 
 Só a espécie, a raça, a idade aproximada e as alergias do pet vão para o provedor, nunca CPF, endereço ou dados de outros usuários (ARQ-02). As instruções fixas proíbem diagnóstico e prescrição e ficam em cache no provedor. Se o modelo recusar por política, a API tenta no modelo reserva (`fallbacks: "default"`); recusa final ou falha do provedor viram uma mensagem segura na conversa.
 
-## Pagamentos (UC-44)
+## Pagamentos (UC-44, UC-45)
 
 | Rota | Uso |
 |---|---|
 | `POST /v1/pagamentos` | O tutor paga um serviço agendado. O pagamento nasce PENDENTE com o preço contratado (RN27). Com PIX, a resposta traz o QR code; com cartão, o app manda só o token do formulário seguro do gateway (sem dados de cartão na API). Cartão recusado volta com `motivoRecusa` para tentar outro meio (CT-44-02). |
+| `GET /v1/pagamentos?status=&de=&ate=` e `GET /v1/pagamentos/{id}` | Consulta (UC-45): o tutor vê os que pagou e a empresa, com `financeiro:ler`, os que recebeu (RN22), com descrição, contraparte, pet, reembolso e se ainda pode pedir reembolso (CT-45-01). |
+| `POST /v1/pagamentos/{id}/reembolsos` | Pedido de reembolso pelo tutor, com motivo: só pagamento confirmado há até 30 dias e sem outro pedido; senão 409 `RN39_REEMBOLSO_INDISPONIVEL` (CT-45-02). A empresa recebe e-mail; o estorno em si é feito no painel do meio de pagamento. |
 | `POST /v1/webhooks/pagamentos` | Eventos do gateway. A assinatura `x-signature` é conferida antes de tudo (RN36) e o status vem de nova consulta ao gateway; eventos repetidos não mudam nada. |
 
 O pagamento só fica ACEITO com a confirmação do gateway (RN39, DS-05). Na confirmação, o tutor recebe e-mail e o evento `pagamento:atualizado`, que também chega à empresa em tempo real. O worker confere de hora em hora os pendentes, caso um webhook se perca (ARQ-03, seção 3.1).

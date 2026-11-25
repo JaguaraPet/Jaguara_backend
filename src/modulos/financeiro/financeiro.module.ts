@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { ComunicacaoModule } from '../comunicacao/comunicacao.module';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
+import { ConsultaPagamentosService } from './aplicacao/consulta-pagamentos.service';
 import { DespesasService } from './aplicacao/despesas.service';
 import { AssinaturasService } from './aplicacao/assinaturas.service';
 import { PagamentosService } from './aplicacao/pagamentos.service';
 import { RelatorioDespesasService } from './aplicacao/relatorio-despesas.service';
 import { AssinaturasController } from './http/assinaturas.controller';
+import { ConsultaPagamentosController } from './http/consulta-pagamentos.controller';
 import { DespesasController } from './http/despesas.controller';
 import { PagamentosController } from './http/pagamentos.controller';
 import { RelatoriosController } from './http/relatorios.controller';
@@ -19,12 +21,14 @@ import { provedorGateway } from './infra/gateway.provider';
     DespesasController,
     AssinaturasController,
     RelatoriosController,
+    ConsultaPagamentosController,
   ],
   providers: [
     PagamentosService,
     AssinaturasService,
     DespesasService,
     RelatorioDespesasService,
+    ConsultaPagamentosService,
     provedorGateway,
   ],
   exports: [PagamentosService],
