@@ -279,6 +279,10 @@ Quem acessa (`PoliticaSaude`, RN15, RN26, RN30): o tutor responsável, com `saud
 | `GET /v1/empresas/{empresaId}/pets/{petId}/perfil` | Perfil básico e só as seções que o tutor liberou (UC-22, RN26, CT-22-01); pet sem vínculo responde 403 (CT-20-02, CT-22-02). |
 
 
+## Falecimento e memorial (UC-15, RN19)
+
+`POST /v1/pets/{petId}/falecimento` (só o responsável principal, auditado) deixa o pet FALECIDO, termina os remédios em uso e cancela os lembretes pendentes do pet. O memorial só abre depois disso (409 `RN19_MEMORIAL_BLOQUEADO`, CT-15-02): `GET` e `PUT /v1/pets/{petId}/memorial` cuidam da mensagem, `POST /v1/pets/{petId}/memorial/itens` adiciona lembrança de texto, homenagem ou foto (a foto devolve a URL assinada de envio) e `DELETE /v1/memorial/itens/{id}` remove. As fotos voltam com URL assinada de leitura de 5 minutos.
+
 ## Calendário do pet (UC-10)
 
 | Rota | Uso |

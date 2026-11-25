@@ -35,6 +35,16 @@ export class Armazenamento {
     });
   }
 
+  /** URL de leitura para mostrar o arquivo na tela (por exemplo, uma foto). */
+  urlLeitura(chave: string, agora = new Date()): string {
+    return assinarUrl(this.credenciais, {
+      metodo: 'GET',
+      chave,
+      expiraSegundos: VALIDADE_URL_SEGUNDOS,
+      agora,
+    });
+  }
+
   /** URL de download que já baixa com o nome original do arquivo. */
   urlDownload(chave: string, nomeArquivo: string, agora = new Date()): string {
     const nome = nomeArquivo.replace(/["\\\r\n]/g, '_');
