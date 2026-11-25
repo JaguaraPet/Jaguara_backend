@@ -330,6 +330,10 @@ Ações críticas gravam `LogAuditoria` pelo decorador `@Auditar(...)` e pelo `A
 
 `GET /v1/empresas/{empresaId}/indicadores?de=&ate=` (período de até um ano, `relatorio:ler`) traz atendimentos realizados, faturamento confirmado, taxa de aceite das solicitações respondidas, os cinco serviços mais pedidos e os atendimentos por dia. Só a própria empresa vê os seus números; outra empresa e o administrador da plataforma recebem 403 (CT-17-02).
 
+## Permissões globais (UC-29, RN35)
+
+`GET /v1/admin/perfis` mostra a matriz dos perfis globais (Tutor, Empresa e os da administração) com as permissões e quantas contas usam cada um; `GET /v1/admin/permissoes` traz o catálogo com a categoria de cada permissão. `PUT /v1/admin/perfis/{id}` troca as permissões (auditado como CRITICO): perfil vazio (CT-29-02) ou com permissão de outra categoria responde 422, e o administrador não tira `admin:usuarios` do próprio perfil (409). A mudança vale na próxima requisição (CT-29-01): o perfil fica marcado no Redis, tokens emitidos antes recebem 401 e o cliente renova a sessão, que já sai com as permissões novas. As permissões padrão dos perfis globais entram só quando o perfil é criado; depois, quem decide é o administrador.
+
 ## Gestão de contas (UC-28, RN34)
 
 Rotas do administrador com `admin:usuarios`: `GET /v1/admin/usuarios?busca=&status=` busca por nome ou e-mail, `GET /v1/admin/usuarios/{id}` mostra o perfil, as sessões ativas e as últimas mudanças de status, e `PUT /v1/admin/usuarios/{id}/status` suspende, bloqueia ou reativa com motivo obrigatório. A mudança e o registro na auditoria (`CONTA_SUSPENSA`, `CONTA_BLOQUEADA`, `CONTA_REATIVADA`) vão na mesma transação: se a auditoria falhar, nada muda e a API responde 503 `RN34_AUDITORIA_INDISPONIVEL` (CT-28-02). Bloquear ou suspender encerra as sessões da conta; reativar zera as tentativas de login. A própria conta, contas pendentes de confirmação e contas excluídas não mudam (409 `RN34_STATUS_INVALIDO`).

@@ -14,6 +14,8 @@ export interface UsuarioAutenticado {
   perfil: string;
   empresaId: string | null;
   permissoes: string[];
+  /** Emissão do token (segundos), para invalidar tokens anteriores a uma mudança de perfil. */
+  iat?: number;
 }
 
 export const CHAVE_PUBLICA = 'rotaPublica';

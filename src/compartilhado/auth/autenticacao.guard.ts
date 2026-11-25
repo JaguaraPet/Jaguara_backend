@@ -46,6 +46,9 @@ export class AutenticacaoGuard implements CanActivate {
     if (await this.revogadas.estaRevogada(usuario.sid)) {
       throw Erros.naoAutenticado('Sessão encerrada.');
     }
+    if (await this.revogadas.perfilMudouDepois(usuario.perfil, usuario.iat)) {
+      throw Erros.naoAutenticado('Suas permissões mudaram. Renove a sessão.');
+    }
     requisicao.usuario = usuario;
     return true;
   }
