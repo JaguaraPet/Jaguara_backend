@@ -77,6 +77,22 @@ describe('UC-41 · Aceite e recusa de solicitações (API)', () => {
     await prisma.$disconnect();
   });
 
+  it('deve listar as pendentes da empresa com os nomes do serviço, do pet e do tutor', async () => {
+    const resposta = await como(
+      http().get('/v1/solicitacoes').query({ status: 'PENDENTE' }),
+    ).expect(200);
+    const lista = resposta.body as {
+      id: string;
+      servico?: string;
+      pet?: string;
+      tutor?: string;
+    }[];
+    expect(lista.map((s) => s.id)).toEqual([primeira, segunda]);
+    expect(lista[0]).toMatchObject({ servico: 'Banho' });
+    expect(typeof lista[0]?.pet).toBe('string');
+    expect(typeof lista[0]?.tutor).toBe('string');
+  });
+
   it('CT-41-01: deve aceitar, criar o agendamento e avisar o tutor', async () => {
     const resposta = await como(
       http()
