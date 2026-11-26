@@ -138,7 +138,14 @@ describe('UC-43 · Chat em tempo real (API e WebSocket)', () => {
       http().get('/v1/conversas'),
     ).expect(200);
     expect(conversas.body).toEqual([
-      expect.objectContaining({ id: conversaId }),
+      expect.objectContaining({
+        id: conversaId,
+        tutor: 'Ana',
+        ultimaMensagem: expect.objectContaining({
+          conteudo: 'Pode sim, às 9h.',
+          minha: true,
+        }) as unknown,
+      }),
     ]);
   });
 

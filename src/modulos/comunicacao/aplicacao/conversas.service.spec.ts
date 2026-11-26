@@ -37,7 +37,18 @@ describe('ConversasService (UC-43)', () => {
   const montar = () => {
     const prisma = {
       conversa: {
-        findMany: jest.fn().mockResolvedValue([conversa]),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            ...conversa,
+            tutor: { nome: 'Ana' },
+            empresa: { nomeFantasia: 'Patas' },
+            pet: null,
+            mensagem: [
+              { conteudo: 'Oi', dataHoraEnvio: new Date(), remetenteId: 't1' },
+            ],
+            _count: { mensagem: 2 },
+          },
+        ]),
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn().mockResolvedValue(conversa),
         create: jest.fn().mockResolvedValue(conversa),
@@ -170,7 +181,13 @@ describe('ConversasService (UC-43)', () => {
 
   it('deve listar por tutor ou por empresa e negar o administrador', async () => {
     const { prisma, servico } = montar();
-    await servico.listar(tutor);
+    const [resumo] = await servico.listar(tutor);
+    expect(resumo).toMatchObject({
+      tutor: 'Ana',
+      empresa: 'Patas',
+      naoLidas: 2,
+      ultimaMensagem: { conteudo: 'Oi', minha: true },
+    });
     expect(prisma.conversa.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { tutorId: 't1' } }),
     );
