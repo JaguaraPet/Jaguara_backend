@@ -25,6 +25,11 @@ export interface Solicitacao {
   dataHoraDesejada: string;
   status: StatusSolicitacao;
   motivoRecusa?: string;
+  /** Nomes para a lista da empresa (UC-41) e do tutor, sem nova consulta por item. */
+  servico?: string;
+  pet?: string;
+  tutor?: string;
+  observacoes?: string;
 }
 
 const minutosDoDia = (d: Date) => d.getUTCHours() * 60 + d.getUTCMinutes();
@@ -152,8 +157,19 @@ export class SolicitacoesService {
     const solicitacoes = await this.prisma.solicitacaoServico.findMany({
       where: { ...where, ...(status ? { status } : {}) },
       orderBy: { dataHoraDesejada: 'asc' },
+      include: {
+        servico: { select: { nome: true } },
+        pet: { select: { nome: true } },
+        tutor: { select: { nome: true } },
+      },
     });
-    return solicitacoes.map((s) => this.resposta(s));
+    return solicitacoes.map((s) => ({
+      ...this.resposta(s),
+      servico: s.servico.nome,
+      pet: s.pet.nome,
+      tutor: s.tutor.nome,
+      observacoes: s.observacoes ?? undefined,
+    }));
   }
 
   /**
