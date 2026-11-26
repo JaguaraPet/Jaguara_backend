@@ -21,9 +21,19 @@ import { CanalTempoReal } from './canal-tempo-real';
 export interface Conversa {
   id: string;
   tipo: TipoConversa;
+  tutorId: string;
   empresaId?: string;
   petId?: string;
   status: StatusConversa;
+}
+
+/** Conversa na lista: com os nomes e a última mensagem, para a empresa e o tutor (UC-43). */
+export interface ConversaResumo extends Conversa {
+  tutor: string;
+  empresa?: string;
+  pet?: string;
+  ultimaMensagem?: { conteudo: string; dataHoraEnvio: string; minha: boolean };
+  naoLidas: number;
 }
 
 export interface Mensagem {
@@ -53,7 +63,7 @@ export class ConversasService implements OnApplicationShutdown {
   ) {}
 
   /** O tutor vê as conversas dele; a empresa vê as conversas abertas com ela. */
-  async listar(usuario: UsuarioAutenticado): Promise<Conversa[]> {
+  async listar(usuario: UsuarioAutenticado): Promise<ConversaResumo[]> {
     const where =
       usuario.tipo === 'TUTOR'
         ? { tutorId: usuario.sub }
@@ -63,9 +73,38 @@ export class ConversasService implements OnApplicationShutdown {
     if (!where) throw Erros.semPermissao();
     const conversas = await this.prisma.conversa.findMany({
       where,
+      include: {
+        tutor: { select: { nome: true } },
+        empresa: { select: { nomeFantasia: true } },
+        pet: { select: { nome: true } },
+        mensagem: { orderBy: { dataHoraEnvio: 'desc' }, take: 1 },
+        _count: {
+          select: {
+            mensagem: {
+              where: { lida: false, NOT: { remetenteId: usuario.sub } },
+            },
+          },
+        },
+      },
       orderBy: { atualizadoEm: 'desc' },
     });
-    return conversas.map((c) => this.conversa(c));
+    return conversas.map((c) => {
+      const ultima = c.mensagem[0];
+      return {
+        ...this.conversa(c),
+        tutor: c.tutor.nome,
+        empresa: c.empresa?.nomeFantasia,
+        pet: c.pet?.nome,
+        ultimaMensagem: ultima
+          ? {
+              conteudo: ultima.conteudo,
+              dataHoraEnvio: ultima.dataHoraEnvio.toISOString(),
+              minha: ultima.remetenteId === usuario.sub,
+            }
+          : undefined,
+        naoLidas: c._count.mensagem,
+      };
+    });
   }
 
   /** CT-43-01 e CT-43-02: abre (ou reaproveita) a conversa aberta com a empresa ou o assistente. */
@@ -287,6 +326,7 @@ export class ConversasService implements OnApplicationShutdown {
   private conversa(c: {
     id: string;
     tipo: TipoConversa;
+    tutorId: string;
     empresaId: string | null;
     petId: string | null;
     status: StatusConversa;
@@ -294,6 +334,7 @@ export class ConversasService implements OnApplicationShutdown {
     return {
       id: c.id,
       tipo: c.tipo,
+      tutorId: c.tutorId,
       empresaId: c.empresaId ?? undefined,
       petId: c.petId ?? undefined,
       status: c.status,
