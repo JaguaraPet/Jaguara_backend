@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CatalogoEspeciesService } from './aplicacao/catalogo-especies.service';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { CompartilhamentosService } from './aplicacao/compartilhamentos.service';
 import { MemorialService } from './aplicacao/memorial.service';
@@ -24,6 +25,7 @@ import { ResponsaveisController } from './http/responsaveis.controller';
     CompartilhamentosService,
     ResponsaveisService,
     MemorialService,
+    CatalogoEspeciesService,
   ],
   exports: [PetsService, PoliticaAcessoPet],
 })
