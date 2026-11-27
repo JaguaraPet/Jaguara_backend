@@ -1,3 +1,5 @@
+import { ResumoDoDiaService } from './aplicacao/resumo-do-dia.service';
+import { ResumoDoDiaController } from './http/resumo-do-dia.controller';
 import { Module } from '@nestjs/common';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
@@ -33,6 +35,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AcompanhamentoController,
     AgendamentosController,
     AtendimentosController,
+    ResumoDoDiaController,
   ],
   providers: [
     CatalogoService,
@@ -43,6 +46,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AgendamentosService,
     AtendimentosService,
     AcompanhamentoSolicitacoesService,
+    ResumoDoDiaService,
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })
