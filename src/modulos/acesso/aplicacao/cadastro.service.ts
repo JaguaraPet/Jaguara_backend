@@ -141,6 +141,74 @@ export class CadastroService {
     };
   }
 
+  /**
+   * Cadastro de tutor iniciado pelo login social (UC-01, RF46): o e-mail já foi confirmado pelo
+   * provedor, então a conta nasce ATIVA, sem senha, e com a identidade externa ligada.
+   */
+  async cadastrarTutorSocial(
+    dados: { nome: string; cpf: string; email: string; telefone?: string },
+    identidade: { provedor: 'GOOGLE' | 'APPLE'; idExterno: string },
+    ip: string,
+  ): Promise<string> {
+    const email = normalizarEmail(dados.email);
+    const cpf = normalizarCpf(dados.cpf);
+    if (!cpfValido(cpf))
+      throw Erros.dadosInvalidos('cpf', 'CPF inválido. Confira os números.');
+    await this.garantirEmailLivre(email);
+    const cpfHash = this.cifragem.indiceCego(cpf);
+    if (
+      await this.prisma.tutor.findUnique({
+        where: { cpfHash },
+        select: { id: true },
+      })
+    ) {
+      throw Erros.conflito(
+        'RN01_CPF_EM_USO',
+        'Este CPF já tem cadastro no Jaguara.',
+      );
+    }
+    const termos = await this.termosVigentes([
+      'TERMOS_USO_APP',
+      'POLITICA_PRIVACIDADE',
+    ]);
+    const agora = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const perfil = await tx.perfilAcesso.findFirstOrThrow({
+        where: { nome: 'Tutor', escopo: 'GLOBAL', empresaId: null },
+      });
+      const criado = await tx.usuario.create({
+        data: {
+          email,
+          telefone: dados.telefone,
+          emailConfirmado: true,
+          status: 'ATIVA',
+          tentativasLoginFalhas: 0,
+          dataCadastro: agora,
+          perfilId: perfil.id,
+        },
+      });
+      await tx.tutor.create({
+        data: {
+          id: criado.id,
+          nome: dados.nome.trim(),
+          cpfCifrado: this.cifragem.cifrar(cpf),
+          cpfHash,
+        },
+      });
+      await tx.identidadeExterna.create({
+        data: {
+          provedor: identidade.provedor,
+          idExterno: identidade.idExterno,
+          emailProvedor: email,
+          dataVinculo: agora,
+          usuarioId: criado.id,
+        },
+      });
+      await this.registrarAceites(tx, criado.id, termos, ip);
+      return criado.id;
+    });
+  }
+
   async cadastrarEmpresa(
     dados: DadosEmpresa,
     ip: string,

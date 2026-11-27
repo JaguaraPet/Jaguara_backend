@@ -9,6 +9,9 @@ import { FuncionariosService } from './aplicacao/funcionarios.service';
 import { AutenticacaoController } from './http/autenticacao.controller';
 import { CadastroController } from './http/cadastro.controller';
 import { FuncionariosController } from './http/funcionarios.controller';
+import { LoginSocialService } from './aplicacao/login-social.service';
+import { LoginSocialController } from './http/login-social.controller';
+import { VerificadorIdentidade } from './infra/verificador-identidade';
 
 import { PerfisService } from './aplicacao/perfis.service';
 import { PerfisController } from './http/perfis.controller';
@@ -20,6 +23,7 @@ import { PerfisController } from './http/perfis.controller';
     CadastroController,
     FuncionariosController,
     PerfisController,
+    LoginSocialController,
   ],
   providers: [
     AutenticacaoService,
@@ -28,6 +32,12 @@ import { PerfisController } from './http/perfis.controller';
     CatalogoAcessoService,
     FuncionariosService,
     PerfisService,
+    LoginSocialService,
+    // Fábrica: o verificador recebe o fetch no construtor (os testes trocam por um falso).
+    {
+      provide: VerificadorIdentidade,
+      useFactory: () => new VerificadorIdentidade(),
+    },
   ],
   exports: [AutenticacaoService, CatalogoAcessoService],
 })

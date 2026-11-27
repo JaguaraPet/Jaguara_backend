@@ -111,6 +111,43 @@ export class AutenticacaoService {
     return this.emitir(usuario.id, sessao.id, refreshToken);
   }
 
+  /**
+   * Abre a sessão de quem já provou a identidade de outro jeito (login social, UC-02 FA04):
+   * mesmas regras de conta ativa do login com senha.
+   */
+  async abrirSessao(usuarioId: string, dispositivo?: string): Promise<Tokens> {
+    const agora = new Date();
+    const usuario = await this.prisma.usuario.findUniqueOrThrow({
+      where: { id: usuarioId },
+    });
+    const impedimento = impedimentoDeLogin(usuario, agora);
+    if (impedimento?.motivo === 'BLOQUEIO_TEMPORARIO') {
+      throw Erros.contaBloqueada(impedimento.ate);
+    }
+    if (impedimento) throw Erros.contaInativa();
+    const refreshToken = this.novoRefreshToken();
+    const sessao = await this.prisma.sessao.create({
+      data: {
+        token: this.hashToken(refreshToken),
+        inicio: agora,
+        ultimaAtividade: agora,
+        dispositivo: dispositivo?.slice(0, 255),
+        usuarioId,
+      },
+    });
+    return this.emitir(usuarioId, sessao.id, refreshToken);
+  }
+
+  /** Confere a senha sem contar tentativa (usada para ligar uma identidade externa à conta). */
+  async senhaConfere(usuarioId: string, senha: string): Promise<boolean> {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { senhaHash: true },
+    });
+    if (!usuario?.senhaHash) return false;
+    return verify(usuario.senhaHash, senha).catch(() => false);
+  }
+
   async renovar(refreshToken: string): Promise<Tokens> {
     const agora = new Date();
     const sessao = await this.prisma.sessao.findUnique({
