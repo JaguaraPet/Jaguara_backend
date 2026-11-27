@@ -1,0 +1,45 @@
+/**
+ * Espécies e raças oferecidas no cadastro do pet (UC-03). Ficam no código para existirem em
+ * todo ambiente, inclusive produção, onde o seed não roda.
+ */
+export const CATALOGO_ESPECIES: Readonly<Record<string, readonly string[]>> = {
+  Cachorro: [
+    'Sem raça definida',
+    'Beagle',
+    'Border Collie',
+    'Boxer',
+    'Bulldog Francês',
+    'Bulldog Inglês',
+    'Chihuahua',
+    'Dachshund',
+    'Golden Retriever',
+    'Labrador',
+    'Lhasa Apso',
+    'Maltês',
+    'Pastor Alemão',
+    'Pinscher',
+    'Pit Bull',
+    'Poodle',
+    'Pug',
+    'Rottweiler',
+    'Shih Tzu',
+    'Spitz Alemão',
+    'Yorkshire',
+  ],
+  Gato: [
+    'Sem raça definida',
+    'Angorá',
+    'Bengal',
+    'British Shorthair',
+    'Maine Coon',
+    'Persa',
+    'Ragdoll',
+    'Siamês',
+    'Sphynx',
+  ],
+  Ave: ['Calopsita', 'Canário', 'Periquito', 'Papagaio', 'Agapornis'],
+  Roedor: ['Hamster', 'Porquinho-da-índia', 'Chinchila', 'Twister', 'Gerbil'],
+  Coelho: ['Sem raça definida', 'Mini Lop', 'Fuzzy Lop', 'Lionhead'],
+  Réptil: ['Jabuti', 'Tartaruga', 'Iguana', 'Gecko', 'Serpente'],
+  Peixe: ['Betta', 'Kinguio', 'Guppy', 'Outro'],
+};
