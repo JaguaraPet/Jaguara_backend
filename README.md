@@ -116,6 +116,10 @@ Cada rota declara o acesso com um destes decoradores, e um teste automatizado fa
 
 Nos serviços, `garantirMesmaEmpresa(usuario, empresaId)` garante que empresa e funcionários só vejam dados da própria empresa. Erros saem em `application/problem+json` com o campo `codigo` (por exemplo, `RN03_CONTA_BLOQUEADA` ou `SEM_PERMISSAO`).
 
+### Login com Google e Apple (UC-02 FA04, RF46)
+
+`POST /v1/auth/login/social` recebe o `id_token` do Google ou da Apple e o `nonce` gerado pelo app. A API confere a assinatura pelas chaves públicas do provedor (`infra/verificador-identidade.ts`, só com `node:crypto`, chaves em cache por 1 hora), o emissor, o público (`GOOGLE_LOGIN_CLIENT_IDS`, separados por vírgula, e `APPLE_CLIENT_ID`), a validade, o nonce (puro no Google, em SHA-256 na Apple) e o e-mail verificado. Identidade já ligada abre a sessão (CT-02-03). Conta com o mesmo e-mail responde 409 até o app repetir o pedido com a `senha` dela; aí a identidade é ligada e vai para a auditoria (CT-02-04). No primeiro acesso, a resposta é 428 com o `cadastroToken` (30 minutos), e `POST /v1/auth/cadastro/social` cria o tutor com CPF e aceite dos termos, já ativo, sem senha (ele pode criar uma por "Esqueci minha senha"). Sem IDs de cliente configurados, o login social responde 503 `LOGIN_SOCIAL_INDISPONIVEL`.
+
 ### Recuperação de senha (UC-03)
 
 `POST /v1/auth/senha/recuperacao` manda por e-mail o link `<URL_WEB>/redefinir-senha?token=...`, válido por 2 horas e uma única vez (RN05); a resposta é a mesma exista ou não a conta, e um link novo invalida os anteriores. `POST /v1/auth/senha/redefinicao` troca a senha, que segue a política e não pode repetir a atual nem as três últimas (RN06); a conta é desbloqueada, as sessões abertas caem e a troca vai para a auditoria.

@@ -68,6 +68,15 @@ export const esquemaAmbiente = z.object({
     (valor) => (valor === '' ? undefined : valor),
     z.string().optional(),
   ),
+  // Login social (UC-02 FA04, RF46): IDs de cliente aceitos no id_token. Vazios: login social desligado.
+  GOOGLE_LOGIN_CLIENT_IDS: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.string().optional(),
+  ),
+  APPLE_CLIENT_ID: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.string().optional(),
+  ),
   EXPO_ACCESS_TOKEN: z.preprocess(
     (valor) => (valor === '' ? undefined : valor),
     z.string().optional(),
