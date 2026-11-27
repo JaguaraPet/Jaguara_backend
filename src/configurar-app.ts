@@ -12,6 +12,14 @@ import { publicarSwagger } from './compartilhado/http/swagger';
  * validação dos DTOs e erros no formato application/problem+json.
  */
 export function configurarApp(app: INestApplication): INestApplication {
+  // A API roda atrás do proxy do CapRover (nginx). Sem confiar nesse salto, todo mundo
+  // aparece com o IP do proxy: os limites por IP viram um limite único para todos os
+  // usuários e a auditoria e o consentimento (LGPD) guardam o IP errado.
+  (
+    app.getHttpAdapter().getInstance() as {
+      set(nome: string, valor: unknown): void;
+    }
+  ).set('trust proxy', 1);
   // Cabeçalhos de segurança e CORS só para a web Enterprise (ADR-012, passo 1).
   // Fora de produção o CSP fica desligado para o Swagger UI carregar.
   app.use(

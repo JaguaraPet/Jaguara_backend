@@ -12,6 +12,7 @@ import { StatusModule } from './compartilhado/status/status.module';
 import { WebhooksModule } from './compartilhado/webhooks/webhooks.module';
 import { AcessoModule } from './modulos/acesso/acesso.module';
 import { PetModule } from './modulos/pet/pet.module';
+import { DemonstracaoModule } from './modulos/demonstracao/demonstracao.module';
 import { SaudeModule } from './modulos/saude/saude.module';
 import { RotinaModule } from './modulos/rotina/rotina.module';
 import { NotificacaoModule } from './modulos/notificacao/notificacao.module';
@@ -35,6 +36,7 @@ import { RelatoriosModule } from './modulos/relatorios/relatorios.module';
     StatusModule,
     AcessoModule,
     PetModule,
+    DemonstracaoModule,
     SaudeModule,
     RotinaModule,
     NotificacaoModule,

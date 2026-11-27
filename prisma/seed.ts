@@ -12,11 +12,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   CategoriaServico,
   DiaSemana,
-  EscopoAcesso,
   EscopoPerfil,
   PrismaClient,
   Sexo,
-  StatusCompartilhamento,
   StatusConta,
   StatusPet,
   TipoEmpresa,
@@ -25,6 +23,7 @@ import {
   TipoTermo,
 } from '../src/generated/prisma/client';
 import { Cifragem } from '../src/compartilhado/cripto/cifragem';
+import { criarClinicaDemonstracao } from '../src/modulos/demonstracao/aplicacao/clinica-demonstracao';
 import {
   PERFIS_EMPRESA_PADRAO,
   PERFIS_GLOBAIS,
@@ -216,20 +215,6 @@ async function main() {
   // Empresas, funcionários, serviços e recursos
   const empresas = [
     {
-      email: 'clinica.patas@exemplo.com', cnpj: cnpjFicticio('112223330001'), razao: 'Clínica Veterinária Patas Ltda.',
-      fantasia: 'Clínica Patas', tipo: TipoEmpresa.CLINICA_VETERINARIA, bairro: 'Pinheiros',
-      servicos: [
-        { nome: 'Consulta clínica', categoria: CategoriaServico.CONSULTA, preco: '180.00', duracao: 40 },
-        { nome: 'Vacina V10', categoria: CategoriaServico.VACINACAO, preco: '120.00', duracao: 20 },
-        { nome: 'Hemograma completo', categoria: CategoriaServico.EXAME, preco: '95.00', duracao: 20 },
-      ],
-      recursos: [{ nome: 'Consultório 1', tipo: TipoRecurso.SALA }, { nome: 'Consultório 2', tipo: TipoRecurso.SALA }],
-      funcionarios: [
-        { email: 'dra.julia@exemplo.com', nome: 'Júlia Andrade', cpf: cpfFicticio('200300400'), cargo: 'Médica-veterinária', perfil: 'Profissional' },
-        { email: 'recepcao.patas@exemplo.com', nome: 'Rafael Souza', cpf: cpfFicticio('200300401'), cargo: 'Recepcionista', perfil: 'Atendente' },
-      ],
-    },
-    {
       email: 'banho.cheiroso@exemplo.com', cnpj: cnpjFicticio('445556660001'), razao: 'Pet Shop Cheiroso Ltda.',
       fantasia: 'Pet Shop Cheiroso', tipo: TipoEmpresa.PET_SHOP, bairro: 'Vila Mariana',
       servicos: [
@@ -315,32 +300,6 @@ async function main() {
       }
     }
   }
-  const [clinica] = idsEmpresas;
-
-  // A Ana é cliente da clínica e compartilha o Thor com ela.
-  const cliente = await prisma.cliente.create({
-    data: {
-      empresaId: clinica,
-      tutorId: ana,
-      codigo: 'CLI-0001',
-      nome: 'Ana Ribeiro',
-      email: 'ana.tutora@exemplo.com',
-      telefone: '(11) 90000-0001',
-      dataVinculo: dia('2026-10-01'),
-      ativo: true,
-    },
-  });
-  await prisma.clientePet.create({ data: { clienteId: cliente.id, petId: idsPets.Thor } });
-  await prisma.compartilhamentoPet.create({
-    data: {
-      petId: idsPets.Thor,
-      empresaId: clinica,
-      token: 'seed-compartilhamento-thor-clinica',
-      escopos: [EscopoAcesso.PERFIL_BASICO, EscopoAcesso.VACINAS, EscopoAcesso.ALERGIAS, EscopoAcesso.EDICAO_CLINICA],
-      status: StatusCompartilhamento.ATIVO,
-      dataConcessao: agora,
-    },
-  });
 
   // Termos vigentes (texto resumido; o texto completo está no Jaguara_doc, seção 08-juridico)
   const termos = [
@@ -359,6 +318,17 @@ async function main() {
       },
     });
   }
+
+  // Clínica Patas: clínica completa, com uma semana de agenda, atendimentos, vacinas, cobranças
+  // e pedidos pendentes em volta de hoje (o mesmo gerador da demonstração pública).
+  await criarClinicaDemonstracao(prisma, {
+    agora,
+    sufixo: 'seed',
+    cifragem,
+    senhaHash,
+    emails: { empresa: 'clinica.patas@exemplo.com', tutor: 'marina.tutora@exemplo.com' },
+    nomeFantasia: 'Clínica Patas',
+  });
 
   const contagem = {
     usuarios: await prisma.usuario.count(),
