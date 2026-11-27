@@ -266,6 +266,23 @@ model Conversa {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 
+/// Clínica de demonstração criada para um visitante: some da busca e expira sozinha.
+model Demonstracao {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresaId   String            @unique @map("empresa_id") @db.Uuid
+  tutorId     String            @map("tutor_id") @db.Uuid
+  codigoTutor String            @unique @map("codigo_tutor") @db.Char(64)
+  ipOrigem    String?           @map("ip_origem") @db.VarChar(255)
+  criadoEm    DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  expiraEm    DateTime          @map("expira_em") @db.Timestamptz(6)
+  encerrada   Boolean           @default(false)
+  empresa     EmpresaEnterprise @relation(fields: [empresaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_demonstracao_empresa_id")
+  tutor       Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_demonstracao_tutor_id")
+
+  @@index([expiraEm], map: "ix_demonstracao_expira")
+  @@map("demonstracao")
+}
+
 model Despesa {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   descricao      String
@@ -337,6 +354,7 @@ model EmpresaEnterprise {
   perfilAcesso          PerfilAcesso[]
   recurso               Recurso[]
   servico               Servico[]
+  demonstracao          Demonstracao?
 
   @@map("empresa_enterprise")
 }
@@ -962,6 +980,7 @@ model Tutor {
   pagamento           Pagamento[]
   responsavelPet      ResponsavelPet[]
   solicitacaoServico  SolicitacaoServico[]
+  demonstracao        Demonstracao[]
   usuario             Usuario              @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tutor_heranca")
 
   @@map("tutor")

@@ -34,7 +34,18 @@ export const esquemaAmbiente = z.object({
   SMTP_PORTA: z.coerce.number().int().positive().default(1025),
   EMAIL_API_KEY: z.string().optional(),
 
-  URL_WEB: z.url(),
+  // Uma ou mais origens separadas por vírgula; a primeira é a usada nos links dos e-mails.
+  URL_WEB: z
+    .string()
+    .min(1)
+    .refine(
+      (valor) =>
+        valor.split(',').every((url) => z.url().safeParse(url.trim()).success),
+      {
+        message:
+          'URL_WEB precisa ser uma URL ou uma lista de URLs separadas por vírgula',
+      },
+    ),
   URL_APP: z.string().min(1),
 
   // Assistente virtual (ARQ-03, seção 3.5). Sem chave, o assistente responde simulado.
@@ -80,6 +91,22 @@ export const esquemaAmbiente = z.object({
   EXPO_ACCESS_TOKEN: z.preprocess(
     (valor) => (valor === '' ? undefined : valor),
     z.string().optional(),
+  ),
+  // Demonstração pública (clínica temporária por visitante). Desligada por padrão.
+  DEMONSTRACAO_HABILITADA: z.preprocess(
+    (valor) => valor === 'true' || valor === true,
+    z.boolean(),
+  ),
+  DEMONSTRACAO_HORAS: z.coerce.number().int().positive().default(48),
+  // Formulário de opinião mostrado na demonstração (Google Forms ou similar).
+  URL_FORMULARIO_OPINIAO: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.url().optional(),
+  ),
+  // Versão web do app do tutor, para o "Ver como tutor" da demonstração.
+  URL_TUTOR_WEB: z.preprocess(
+    (valor) => (valor === '' ? undefined : valor),
+    z.url().optional(),
   ),
 });
 

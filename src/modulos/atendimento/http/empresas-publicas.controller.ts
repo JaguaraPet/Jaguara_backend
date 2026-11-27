@@ -10,6 +10,10 @@ import {
   Min,
 } from 'class-validator';
 import { Autenticado } from '../../../compartilhado/auth/permissoes';
+import {
+  UsuarioAtual,
+  type UsuarioAutenticado,
+} from '../../../compartilhado/auth/usuario-autenticado';
 import type { CategoriaServico } from '../aplicacao/catalogo.service';
 import {
   EmpresaPublica,
@@ -73,8 +77,11 @@ export class EmpresasPublicasController {
 
   @Autenticado()
   @Get()
-  buscar(@Query() filtro: FiltroEmpresasDto) {
-    return this.empresas.buscar(filtro);
+  buscar(
+    @Query() filtro: FiltroEmpresasDto,
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+  ) {
+    return this.empresas.buscar(filtro, usuario.sub);
   }
 
   @Autenticado()

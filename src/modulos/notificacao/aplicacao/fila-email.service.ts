@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { DadosEmail, PedidoEmail, TipoEmail } from '../dominio/email';
+import { ehEmailDemonstracao } from '../../demonstracao/dominio/identificadores';
 
 export const FILA_EMAIL = 'email';
 
@@ -28,6 +29,8 @@ export class FilaEmailService {
     para: string,
     dados: DadosEmail[T],
   ): Promise<void> {
+    // Contas da demonstração usam um domínio reservado que nunca recebe e-mail.
+    if (ehEmailDemonstracao(para)) return;
     await this.fila.add(tipo, { tipo, para, dados }, TENTATIVAS_EMAIL);
   }
 }

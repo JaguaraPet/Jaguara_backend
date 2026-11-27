@@ -37,7 +37,7 @@ export interface FiltroEmpresas {
 export class EmpresasPublicasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async buscar(filtro: FiltroEmpresas) {
+  async buscar(filtro: FiltroEmpresas, usuarioId?: string) {
     const busca = filtro.busca?.trim();
     const servicoAtivo = {
       ativo: true,
@@ -45,6 +45,18 @@ export class EmpresasPublicasService {
     };
     const where = {
       usuario: { status: 'ATIVA' as const },
+      // Clínicas de demonstração só aparecem para a tutora da própria demonstração.
+      // (dentro de AND para não colidir com o OR da busca por texto)
+      AND: [
+        {
+          OR: [
+            { demonstracao: { is: null } },
+            ...(usuarioId
+              ? [{ demonstracao: { is: { tutorId: usuarioId } } }]
+              : []),
+          ],
+        },
+      ],
       servico: { some: servicoAtivo },
       ...(filtro.tipo ? { tipo: filtro.tipo } : {}),
       ...(filtro.cidade

@@ -79,7 +79,24 @@ describe('EmpresasPublicasService', () => {
         { where: Record<string, unknown> },
       ]
     )[0];
-    expect(Object.keys(consulta.where).sort()).toEqual(['servico', 'usuario']);
+    expect(Object.keys(consulta.where).sort()).toEqual([
+      'AND',
+      'servico',
+      'usuario',
+    ]);
+  });
+
+  it('deve esconder as clínicas de demonstração, menos para a tutora da própria demonstração', async () => {
+    await servico.buscar({ pagina: 1, tamanho: 20 }, 't1');
+    const consulta = (
+      prisma.empresaEnterprise.findMany.mock.calls[0] as [
+        { where: { AND: { OR: unknown[] }[] } },
+      ]
+    )[0];
+    expect(consulta.where.AND[0].OR).toEqual([
+      { demonstracao: { is: null } },
+      { demonstracao: { is: { tutorId: 't1' } } },
+    ]);
   });
 
   it('deve responder 404 quando a empresa não existe ou está inativa', async () => {
