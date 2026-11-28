@@ -1,3 +1,4 @@
+import type { AvaliacoesService } from './avaliacoes.service';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
@@ -28,7 +29,12 @@ describe('Perfil público da empresa', () => {
         update: jest.fn((args: unknown) => Promise.resolve(args)),
       },
     };
-    servico = new PerfilPublicoService(prisma as unknown as PrismaService);
+    servico = new PerfilPublicoService(
+      prisma as unknown as PrismaService,
+      {
+        publicas: jest.fn().mockResolvedValue({ media: null, total: 0 }),
+      } as unknown as AvaliacoesService,
+    );
   });
 
   it('deve gerar o endereço a partir do nome, sem acentos nem símbolos', () => {

@@ -51,6 +51,7 @@ model Agendamento {
   servico         Servico                @relation(fields: [servicoId], references: [id], onUpdate: NoAction, map: "fk_agendamento_servico_id")
   solicitacao     SolicitacaoServico?    @relation(fields: [solicitacaoId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_agendamento_solicitacao_id")
   atendimento     Atendimento?
+  avaliacao       Avaliacao?
   pagamento       Pagamento[]
 
   @@index([dataHoraInicio], map: "ix_agendamento_inicio")
@@ -285,6 +286,26 @@ model Demonstracao {
   @@map("demonstracao")
 }
 
+/// Avaliação de 1 a 5 que o tutor dá depois do atendimento; a empresa pode responder.
+model Avaliacao {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agendamentoId String            @unique @map("agendamento_id") @db.Uuid
+  empresaId     String            @map("empresa_id") @db.Uuid
+  autorId       String            @map("autor_id") @db.Uuid
+  nota          Int
+  comentario    String?           @db.VarChar(1000)
+  resposta      String?           @db.VarChar(1000)
+  respondidaEm  DateTime?         @map("respondida_em") @db.Timestamptz(6)
+  criadoEm      DateTime          @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime          @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  agendamento   Agendamento       @relation(fields: [agendamentoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_avaliacao_agendamento_id")
+  empresa       EmpresaEnterprise @relation(fields: [empresaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_avaliacao_empresa_id")
+  autor         Tutor             @relation(fields: [autorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_avaliacao_autor_id")
+
+  @@index([empresaId, criadoEm(sort: Desc)], map: "ix_avaliacao_empresa")
+  @@map("avaliacao")
+}
+
 /// Rotina criada pelo tutor (passeio, banho, antipulgas...): gera os itens do dia e os lembretes.
 model Rotina {
   id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -325,13 +346,13 @@ model RegistroRotina {
 
 /// Dose de remédio dada, com quem deu: evita dar duas vezes ou nenhuma numa família.
 model DoseRegistrada {
-  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tratamentoId  String                  @map("tratamento_id") @db.Uuid
-  previstaPara  DateTime                @map("prevista_para") @db.Timestamptz(6)
-  feitoPorId    String                  @map("feito_por_id") @db.Uuid
-  feitoEm       DateTime                @default(now()) @map("feito_em") @db.Timestamptz(6)
-  tratamento    TratamentoMedicamentoso @relation(fields: [tratamentoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dose_registrada_tratamento_id")
-  feitoPor      Usuario                 @relation(fields: [feitoPorId], references: [id], onUpdate: NoAction, map: "fk_dose_registrada_feito_por_id")
+  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tratamentoId String                  @map("tratamento_id") @db.Uuid
+  previstaPara DateTime                @map("prevista_para") @db.Timestamptz(6)
+  feitoPorId   String                  @map("feito_por_id") @db.Uuid
+  feitoEm      DateTime                @default(now()) @map("feito_em") @db.Timestamptz(6)
+  tratamento   TratamentoMedicamentoso @relation(fields: [tratamentoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dose_registrada_tratamento_id")
+  feitoPor     Usuario                 @relation(fields: [feitoPorId], references: [id], onUpdate: NoAction, map: "fk_dose_registrada_feito_por_id")
 
   @@unique([tratamentoId, previstaPara], map: "uq_dose_registrada")
   @@map("dose_registrada")
@@ -417,6 +438,7 @@ model EmpresaEnterprise {
   perfilAcesso          PerfilAcesso[]
   recurso               Recurso[]
   servico               Servico[]
+  avaliacao             Avaliacao[]
   demonstracao          Demonstracao?
 
   @@map("empresa_enterprise")
@@ -1042,6 +1064,7 @@ model Tutor {
   criadoEm            DateTime             @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm        DateTime             @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
   assinatura          Assinatura[]
+  avaliacao           Avaliacao[]
   cliente             Cliente[]
   conversa            Conversa[]
   pagamento           Pagamento[]

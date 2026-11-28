@@ -72,6 +72,28 @@ const HORARIOS = [
   '17:00',
 ];
 
+const OPINIOES: {
+  nota: number;
+  comentario: string | null;
+  resposta?: string;
+}[] = [
+  {
+    nota: 5,
+    comentario: 'Atendimento muito carinhoso, explicaram tudo com calma.',
+    resposta: 'Obrigado! Até a próxima.',
+  },
+  { nota: 5, comentario: 'Pontuais e atenciosos. Recebi o resumo no app.' },
+  { nota: 4, comentario: 'Gostei muito, só esperei uns minutos na recepção.' },
+  { nota: 5, comentario: null },
+  {
+    nota: 3,
+    comentario: 'Bom atendimento, mas o estacionamento é difícil.',
+    resposta:
+      'Obrigado pelo retorno! Temos convênio com o estacionamento ao lado.',
+  },
+  { nota: 5, comentario: 'Melhor clínica do bairro.' },
+];
+
 /**
  * Plantão de domingo de manhã: quem abre a demonstração num domingo também encontra a clínica
  * atendendo, em vez de uma tela Hoje vazia.
@@ -845,6 +867,27 @@ export async function criarClinicaDemonstracao(
           },
         },
       });
+      // Os outros tutores já avaliaram os atendimentos antigos; os da tutora da demonstração
+      // ficam esperando a avaliação dela no app.
+      if (d <= -2 && donoDoPet[slot.pet] !== tutorPrincipal) {
+        const opiniao = OPINIOES[(indice + d + 20) % OPINIOES.length];
+        await db.avaliacao.create({
+          data: {
+            agendamentoId: agendamento.id,
+            empresaId,
+            autorId: donoDoPet[slot.pet],
+            nota: opiniao.nota,
+            comentario: opiniao.comentario,
+            criadoEm: new Date(fim.getTime() + 5 * 3_600_000),
+            ...(opiniao.resposta
+              ? {
+                  resposta: opiniao.resposta,
+                  respondidaEm: new Date(fim.getTime() + 24 * 3_600_000),
+                }
+              : {}),
+          },
+        });
+      }
       // Hoje e ontem ficam cobranças em aberto; o resto já foi pago.
       const pago = d < -1 || (d === -1 && i % 2 === 0);
       await db.pagamento.create({

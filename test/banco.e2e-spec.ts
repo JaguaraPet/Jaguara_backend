@@ -13,11 +13,11 @@ describe('Banco de teste (integração)', () => {
     await prisma.$disconnect();
   });
 
-  it('deve ter as 57 tabelas do MOD-03 e as novas (push, demonstração, rotinas e doses) quando as migrações são aplicadas', async () => {
+  it('deve ter as 57 tabelas do MOD-03 e as novas (push, demonstração, rotinas e doses, avaliações) quando as migrações são aplicadas', async () => {
     const [{ total }] = await prisma.$queryRaw<{ total: bigint }[]>`
       SELECT count(*) AS total FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name <> '_prisma_migrations'`;
-    expect(Number(total)).toBe(62);
+    expect(Number(total)).toBe(63);
   });
 
   it('deve recusar conta ativa sem e-mail confirmado (RN02) quando grava no banco', async () => {
