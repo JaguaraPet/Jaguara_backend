@@ -18,6 +18,15 @@ export interface EmpresaPublica {
   cidade: string;
   uf: string;
   categorias: CategoriaServico[];
+  /** Perfil público editado pela empresa */
+  slug?: string;
+  descricao?: string;
+  telefone?: string;
+  whatsapp?: string;
+  instagram?: string;
+  horarioFuncionamento?: string;
+  formasPagamento?: string[];
+  politicaCancelamento?: string;
 }
 
 export interface FiltroEmpresas {
@@ -123,6 +132,14 @@ export class EmpresasPublicasService {
     enderecoBairro: string;
     enderecoCidade: string;
     enderecoUf: string;
+    slug: string | null;
+    descricao: string | null;
+    telefonePublico: string | null;
+    whatsapp: string | null;
+    instagram: string | null;
+    horarioFuncionamento: string | null;
+    formasPagamento: string[];
+    politicaCancelamento: string | null;
     servico: { categoria: CategoriaServico }[];
   }): EmpresaPublica {
     return {
@@ -133,6 +150,14 @@ export class EmpresasPublicasService {
       cidade: e.enderecoCidade,
       uf: e.enderecoUf,
       categorias: [...new Set(e.servico.map((s) => s.categoria))].sort(),
+      slug: e.slug ?? undefined,
+      descricao: e.descricao ?? undefined,
+      telefone: e.telefonePublico ?? undefined,
+      whatsapp: e.whatsapp ?? undefined,
+      instagram: e.instagram ?? undefined,
+      horarioFuncionamento: e.horarioFuncionamento ?? undefined,
+      formasPagamento: e.formasPagamento,
+      politicaCancelamento: e.politicaCancelamento ?? undefined,
     };
   }
 }

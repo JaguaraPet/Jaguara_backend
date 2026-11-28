@@ -48,6 +48,8 @@ export interface OpcoesClinica {
   /** E-mails fixos (seed local); sem eles, e-mails no domínio reservado de demonstração. */
   emails?: { empresa: string; tutor: string };
   nomeFantasia?: string;
+  /** Endereço da página pública; sem ele, um endereço único da demonstração. */
+  slug?: string;
   /** IP registrado no aceite dos termos das contas que entram. */
   ipOrigem?: string;
 }
@@ -137,6 +139,17 @@ export async function criarClinicaDemonstracao(
       enderecoBairro: 'Pinheiros',
       enderecoCidade: 'São Paulo',
       enderecoUf: 'SP',
+      slug: op.slug ?? `vida-animal-${sufixo}`,
+      descricao:
+        'Clínica veterinária em Pinheiros com atendimento clínico, vacinas e exames no mesmo lugar. Dois veterinários na equipe e um consultório só para gatos.',
+      telefonePublico: '(11) 3333-4400',
+      whatsapp: '(11) 98888-4400',
+      instagram: (op.slug ?? 'vidaanimal').replace(/-/g, '') + '.vet',
+      horarioFuncionamento:
+        'Segunda a sexta, das 8h às 18h · Sábado, das 8h às 12h · Domingo, plantão das 9h às 13h',
+      formasPagamento: ['PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'DINHEIRO'],
+      politicaCancelamento:
+        'Cancele ou remarque pelo app até 2 horas antes, sem custo. Faltas sem aviso podem exigir pagamento antecipado no próximo agendamento.',
     },
   });
   const permissoes = new Map(

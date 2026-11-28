@@ -1,3 +1,5 @@
+import { PerfilPublicoService } from './aplicacao/perfil-publico.service';
+import { PerfilPublicoController } from './http/perfil-publico.controller';
 import { LembretesAgendamentoService } from './aplicacao/lembretes-agendamento.service';
 import { ResumoDoDiaService } from './aplicacao/resumo-do-dia.service';
 import { ResumoDoDiaController } from './http/resumo-do-dia.controller';
@@ -37,6 +39,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AgendamentosController,
     AtendimentosController,
     ResumoDoDiaController,
+    PerfilPublicoController,
   ],
   providers: [
     CatalogoService,
@@ -49,6 +52,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AcompanhamentoSolicitacoesService,
     ResumoDoDiaService,
     LembretesAgendamentoService,
+    PerfilPublicoService,
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })

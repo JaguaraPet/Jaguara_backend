@@ -328,6 +328,7 @@ async function main() {
     senhaHash,
     emails: { empresa: 'clinica.patas@exemplo.com', tutor: 'marina.tutora@exemplo.com' },
     nomeFantasia: 'Clínica Patas',
+    slug: 'clinica-patas',
   });
 
   const contagem = {

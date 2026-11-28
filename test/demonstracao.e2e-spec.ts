@@ -47,5 +47,11 @@ describe('Demonstração pública (integração)', () => {
     });
     expect(doDia).toHaveLength(3);
     expect(doDia.every((a) => a.status === 'AGENDADO')).toBe(true);
+
+    // O perfil público avisa do plantão.
+    const empresa = await prisma.empresaEnterprise.findUniqueOrThrow({
+      where: { id: empresaId },
+    });
+    expect(empresa.horarioFuncionamento).toMatch(/Domingo, plantão/);
   });
 });
