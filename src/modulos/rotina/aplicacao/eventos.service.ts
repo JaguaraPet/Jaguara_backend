@@ -16,6 +16,8 @@ export interface Evento {
   dataHoraFim?: string;
   local?: string;
   origem: 'MANUAL' | 'AGENDAMENTO' | 'CALENDARIO_EXTERNO';
+  /** Agendamento com empresa: o responsável já confirmou a presença. */
+  confirmado?: boolean;
 }
 
 /** Período padrão da consulta: de hoje a 30 dias. */
@@ -72,6 +74,7 @@ export class EventosService {
         dataHoraFim: a.dataHoraFim.toISOString(),
         local: a.servico.empresa.nomeFantasia,
         origem: 'AGENDAMENTO',
+        confirmado: a.confirmadoEm !== null,
       })),
     ].sort((a, b) => a.dataHoraInicio.localeCompare(b.dataHoraInicio));
   }

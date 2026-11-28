@@ -34,6 +34,8 @@ model Agendamento {
   dataHoraFim     DateTime               @map("data_hora_fim") @db.Timestamptz(6)
   precoContratado Decimal                @map("preco_contratado") @db.Decimal(12, 2)
   status          StatusAgendamento
+  /// Quando um responsável confirmou que vai (lembrete do agendamento).
+  confirmadoEm    DateTime?              @map("confirmado_em") @db.Timestamptz(6)
   criadoEm        DateTime               @map("criado_em") @db.Timestamptz(6)
   solicitacaoId   String?                @unique @map("solicitacao_id") @db.Uuid
   servicoId       String                 @map("servico_id") @db.Uuid

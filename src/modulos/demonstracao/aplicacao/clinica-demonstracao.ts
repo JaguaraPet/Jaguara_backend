@@ -668,6 +668,11 @@ export async function criarClinicaDemonstracao(
           dataHoraFim: fim,
           precoContratado: servico.preco,
           status,
+          // Metade dos próximos já confirmados pelo tutor no lembrete
+          confirmadoEm:
+            status === StatusAgendamento.AGENDADO && (i + d) % 2 === 0
+              ? new Date(agora.getTime() - 3 * 3_600_000)
+              : null,
           criadoEm: emBrasilia(agora, d - 5, '12:00'),
           servicoId: servico.id,
           petId: pet[slot.pet],
