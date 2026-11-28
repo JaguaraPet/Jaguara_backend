@@ -1,3 +1,4 @@
+import { LembretesAgendamentoService } from './aplicacao/lembretes-agendamento.service';
 import { ResumoDoDiaService } from './aplicacao/resumo-do-dia.service';
 import { ResumoDoDiaController } from './http/resumo-do-dia.controller';
 import { Module } from '@nestjs/common';
@@ -47,6 +48,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AtendimentosService,
     AcompanhamentoSolicitacoesService,
     ResumoDoDiaService,
+    LembretesAgendamentoService,
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })

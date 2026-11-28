@@ -175,6 +175,25 @@ describe('UC-39 e UC-24 · Agendamento pela empresa e agenda (API)', () => {
     });
   });
 
+  it('deve programar os lembretes do agendamento e deixar o tutor confirmar a presença', async () => {
+    const lembretes = await prisma.notificacao.findMany({
+      where: { origemTipo: 'AGENDAMENTO', origemId: primeiro.id },
+    });
+    expect(lembretes.length).toBeGreaterThanOrEqual(1);
+    expect(lembretes.every((n) => n.status === 'AGENDADA')).toBe(true);
+
+    await autorizado(
+      http().post(`/v1/agendamentos/${primeiro.id}/confirmacao`),
+    ).expect(403);
+    const confirmado = await http()
+      .post(`/v1/agendamentos/${primeiro.id}/confirmacao`)
+      .set('Authorization', `Bearer ${tokenTutor}`)
+      .expect(201);
+    expect(
+      (confirmado.body as Agendamento & { confirmadoEm?: string }).confirmadoEm,
+    ).toBeDefined();
+  });
+
   it('deve mostrar a semana com os agendamentos e deixar o tutor cancelar', async () => {
     const semana = amanha9h.slice(0, 10);
     const agenda = await autorizado(
@@ -199,6 +218,17 @@ describe('UC-39 e UC-24 · Agendamento pela empresa e agenda (API)', () => {
     ).toEqual([
       expect.objectContaining({ id: primeiro.id, status: 'CANCELADO' }),
     ]);
+  });
+
+  it('deve cancelar os lembretes quando o agendamento é cancelado', async () => {
+    const pendentes = await prisma.notificacao.count({
+      where: {
+        origemTipo: 'AGENDAMENTO',
+        origemId: primeiro.id,
+        status: 'AGENDADA',
+      },
+    });
+    expect(pendentes).toBe(0);
   });
 
   it('deve negar agendamento para pet sem vínculo com a empresa', async () => {

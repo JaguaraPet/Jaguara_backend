@@ -15,6 +15,8 @@ export interface NovaNotificacao {
   tipoEvento: TipoEvento;
   origemTipo: OrigemNotificacao;
   origemId: string;
+  /** Antecedência fixa, para lembretes com hora certa (ex.: 24 h e 2 h antes do agendamento). */
+  antecedenciaMinutos?: number;
 }
 
 /**
@@ -53,7 +55,13 @@ export class AgendaNotificacoesService {
         n.tipoEvento,
         porChave.get(`${n.destinatarioId}:${n.tipoEvento}`),
       );
-      const dataProgramada = programar(n.dataReferencia, configuracao, agora);
+      const dataProgramada = programar(
+        n.dataReferencia,
+        n.antecedenciaMinutos === undefined
+          ? configuracao
+          : { ...configuracao, antecedenciaMinutos: n.antecedenciaMinutos },
+        agora,
+      );
       if (!dataProgramada) return [];
       return [
         {

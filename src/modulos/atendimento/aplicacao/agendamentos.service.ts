@@ -7,6 +7,7 @@ import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-we
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import { PoliticaAcessoPet } from '../../pet/aplicacao/politica-acesso-pet';
 import { inicioDoDiaBrasilia } from '../dominio/disponibilidade';
+import { LembretesAgendamentoService } from './lembretes-agendamento.service';
 import { SolicitacoesService } from './solicitacoes.service';
 
 export type StatusAgendamento =
@@ -22,6 +23,8 @@ export interface Agendamento {
   recursoId?: string;
   precoContratado: number;
   status: StatusAgendamento;
+  /** Quando um responsável confirmou a presença pelo lembrete. */
+  confirmadoEm?: string;
 }
 
 interface Intervalo {
@@ -42,6 +45,7 @@ export class AgendamentosService {
     private readonly solicitacoes: SolicitacoesService,
     private readonly fila: FilaEmailService,
     private readonly webhooks: PublicadorWebhook,
+    private readonly lembretes: LembretesAgendamentoService,
   ) {}
 
   /** CT-39-01: cria o agendamento com o preço congelado (RN27) e avisa o tutor. */
@@ -97,6 +101,7 @@ export class AgendamentosService {
       }),
     );
     await this.avisarTutor(dados.petId, servico.nome, inicio);
+    await this.lembretes.programar(criado.id);
     await this.webhooks.publicar('agendamento.criado', {
       agendamentoId: criado.id,
       servicoId: servico.id,
@@ -156,9 +161,12 @@ export class AgendamentosService {
           dataHoraFim: fim,
           profissionalId,
           recursoId,
+          // Novo horário: a confirmação anterior não vale mais.
+          confirmadoEm: null,
         },
       }),
     );
+    await this.lembretes.reprogramar(agendamentoId);
     return this.resposta(alterado);
   }
 
@@ -187,11 +195,35 @@ export class AgendamentosService {
       where: { id: agendamentoId },
       data: { status: 'CANCELADO' },
     });
+    await this.lembretes.cancelar(agendamentoId);
     await this.webhooks.publicar('agendamento.cancelado', {
       agendamentoId,
       empresaId: atual.servico.empresaId,
       canceladoPor: usuario.tipo === 'TUTOR' ? 'TUTOR' : 'EMPRESA',
     });
+  }
+
+  /** O responsável confirma pelo lembrete que vai ao agendamento. */
+  async confirmarPresenca(
+    usuario: UsuarioAutenticado,
+    agendamentoId: string,
+  ): Promise<Agendamento> {
+    const atual = await this.buscar(agendamentoId);
+    const nivel = await this.politicaPet.nivel(usuario, atual.petId);
+    if (nivel !== 'RESPONSAVEL_PRINCIPAL' && nivel !== 'RESPONSAVEL') {
+      throw Erros.semPermissao();
+    }
+    if (atual.status !== 'AGENDADO' || atual.dataHoraInicio <= new Date()) {
+      throw Erros.conflito(
+        'AGENDAMENTO_INATIVO',
+        'Este agendamento não está mais ativo.',
+      );
+    }
+    const confirmado = await this.prisma.agendamento.update({
+      where: { id: agendamentoId },
+      data: { confirmadoEm: atual.confirmadoEm ?? new Date() },
+    });
+    return this.resposta(confirmado);
   }
 
   /** Agenda semanal (UC-24): agendamentos e solicitações pendentes da semana. */
@@ -317,6 +349,7 @@ export class AgendamentosService {
       }),
     );
     await this.avisarResposta(solicitacaoId, true);
+    await this.lembretes.programar(criado.id);
     await this.webhooks.publicar('solicitacao.status_alterado', {
       solicitacaoId,
       empresaId: solicitacao.servico.empresaId,
@@ -481,6 +514,7 @@ export class AgendamentosService {
     recursoId: string | null;
     precoContratado: { toNumber(): number };
     status: StatusAgendamento;
+    confirmadoEm?: Date | null;
   }): Agendamento {
     return {
       id: a.id,
@@ -492,6 +526,7 @@ export class AgendamentosService {
       recursoId: a.recursoId ?? undefined,
       precoContratado: a.precoContratado.toNumber(),
       status: a.status,
+      confirmadoEm: a.confirmadoEm?.toISOString(),
     };
   }
 }

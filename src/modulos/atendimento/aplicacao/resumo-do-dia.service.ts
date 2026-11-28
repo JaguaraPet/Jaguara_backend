@@ -152,6 +152,7 @@ export class ResumoDoDiaService {
         alergias: a.pet.alergiaRestricao.map((r) => r.descricao),
         atendimentoId: a.atendimento?.id ?? null,
         atendimentoStatus: a.atendimento?.status ?? null,
+        confirmado: a.confirmadoEm !== null,
         pago: a.pagamento.length
           ? a.pagamento.some((p) => p.status === 'ACEITO')
           : null,

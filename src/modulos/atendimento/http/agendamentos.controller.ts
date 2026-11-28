@@ -14,6 +14,7 @@ import {
   Autenticado,
   Permissoes,
   SomenteEnterprise,
+  SomenteTutor,
 } from '../../../compartilhado/auth/permissoes';
 import { UsuarioAtual } from '../../../compartilhado/auth/usuario-autenticado';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
@@ -121,6 +122,17 @@ export class AgendamentosController {
     @Param('agendamentoId', ParseUUIDPipe) agendamentoId: string,
   ): Promise<void> {
     await this.agendamentos.cancelar(usuario, agendamentoId);
+  }
+
+  /** O tutor confirma, pelo lembrete, que vai ao agendamento. */
+  @SomenteTutor()
+  @Autenticado()
+  @Post('agendamentos/:agendamentoId/confirmacao')
+  confirmarPresenca(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('agendamentoId', ParseUUIDPipe) agendamentoId: string,
+  ): Promise<Agendamento> {
+    return this.agendamentos.confirmarPresenca(usuario, agendamentoId);
   }
 
   /** UC-24: agenda semanal com os pedidos pendentes. */
