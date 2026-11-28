@@ -20,10 +20,10 @@ import {
   TipoEmpresa,
   TipoRecurso,
   TipoResponsavel,
-  TipoTermo,
 } from '../src/generated/prisma/client';
 import { Cifragem } from '../src/compartilhado/cripto/cifragem';
 import { criarClinicaDemonstracao } from '../src/modulos/demonstracao/aplicacao/clinica-demonstracao';
+import { garantirTermosPadrao } from '../src/modulos/privacidade/aplicacao/termos-padrao.service';
 import {
   PERFIS_EMPRESA_PADRAO,
   PERFIS_GLOBAIS,
@@ -301,23 +301,8 @@ async function main() {
     }
   }
 
-  // Termos vigentes (texto resumido; o texto completo está no Jaguara_doc, seção 08-juridico)
-  const termos = [
-    { tipo: TipoTermo.TERMOS_USO_APP, titulo: 'Termos de uso do app Jaguara', obrigatorio: true },
-    { tipo: TipoTermo.TERMOS_ENTERPRISE, titulo: 'Termos de uso do Jaguara Enterprise', obrigatorio: true },
-    { tipo: TipoTermo.POLITICA_PRIVACIDADE, titulo: 'Política de privacidade', obrigatorio: true },
-    { tipo: TipoTermo.COMUNICACAO_MARKETING, titulo: 'Comunicações de novidades', obrigatorio: false },
-  ];
-  for (const t of termos) {
-    await prisma.termoUso.create({
-      data: {
-        ...t,
-        versao: '1.0',
-        conteudo: `${t.titulo}, versão 1.0. Texto completo no Jaguara_doc (08-juridico).`,
-        dataVigencia: dia('2026-11-01'),
-      },
-    });
-  }
+  // Termos vigentes (os mesmos que a API publica na inicialização de qualquer ambiente)
+  await garantirTermosPadrao(prisma);
 
   // Clínica Patas: clínica completa, com uma semana de agenda, atendimentos, vacinas, cobranças
   // e pedidos pendentes em volta de hoje (o mesmo gerador da demonstração pública).
