@@ -4,7 +4,12 @@ import { configuracaoEfetiva, programar } from '../dominio/programacao';
 import type { Configuracao, TipoEvento } from '../dominio/programacao';
 
 export type OrigemNotificacao =
-  'VACINACAO' | 'TRATAMENTO' | 'EVENTO' | 'ALIMENTACAO' | 'AGENDAMENTO';
+  | 'VACINACAO'
+  | 'TRATAMENTO'
+  | 'EVENTO'
+  | 'ALIMENTACAO'
+  | 'AGENDAMENTO'
+  | 'ROTINA';
 
 export interface NovaNotificacao {
   destinatarioId: string;

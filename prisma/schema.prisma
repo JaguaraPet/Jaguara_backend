@@ -285,6 +285,58 @@ model Demonstracao {
   @@map("demonstracao")
 }
 
+/// Rotina criada pelo tutor (passeio, banho, antipulgas...): gera os itens do dia e os lembretes.
+model Rotina {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  petId         String           @map("pet_id") @db.Uuid
+  titulo        String           @db.VarChar(120)
+  tipo          TipoRotina
+  frequencia    FrequenciaRotina
+  intervaloDias Int?             @map("intervalo_dias")
+  diasSemana    Int[]            @default([]) @map("dias_semana")
+  horarios      String[]         @default([])
+  dataInicio    DateTime         @map("data_inicio") @db.Date
+  ativa         Boolean          @default(true)
+  criadoPorId   String           @map("criado_por_id") @db.Uuid
+  criadoEm      DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
+  atualizadoEm  DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
+  pet           Pet              @relation(fields: [petId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rotina_pet_id")
+  criadoPor     Usuario          @relation("RotinaCriadaPor", fields: [criadoPorId], references: [id], onUpdate: NoAction, map: "fk_rotina_criado_por_id")
+  registros     RegistroRotina[]
+
+  @@index([petId, ativa], map: "ix_rotina_pet")
+  @@map("rotina")
+}
+
+/// Um "feito" de uma rotina num dia (e horário), com quem fez.
+model RegistroRotina {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rotinaId   String   @map("rotina_id") @db.Uuid
+  data       DateTime @db.Date
+  horario    String   @default("") @db.VarChar(5)
+  feitoPorId String   @map("feito_por_id") @db.Uuid
+  feitoEm    DateTime @default(now()) @map("feito_em") @db.Timestamptz(6)
+  rotina     Rotina   @relation(fields: [rotinaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_registro_rotina_rotina_id")
+  feitoPor   Usuario  @relation(fields: [feitoPorId], references: [id], onUpdate: NoAction, map: "fk_registro_rotina_feito_por_id")
+
+  @@unique([rotinaId, data, horario], map: "uq_registro_rotina")
+  @@map("registro_rotina")
+}
+
+/// Dose de remédio dada, com quem deu: evita dar duas vezes ou nenhuma numa família.
+model DoseRegistrada {
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tratamentoId  String                  @map("tratamento_id") @db.Uuid
+  previstaPara  DateTime                @map("prevista_para") @db.Timestamptz(6)
+  feitoPorId    String                  @map("feito_por_id") @db.Uuid
+  feitoEm       DateTime                @default(now()) @map("feito_em") @db.Timestamptz(6)
+  tratamento    TratamentoMedicamentoso @relation(fields: [tratamentoId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_dose_registrada_tratamento_id")
+  feitoPor      Usuario                 @relation(fields: [feitoPorId], references: [id], onUpdate: NoAction, map: "fk_dose_registrada_feito_por_id")
+
+  @@unique([tratamentoId, previstaPara], map: "uq_dose_registrada")
+  @@map("dose_registrada")
+}
+
 model Despesa {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   descricao      String
@@ -724,6 +776,7 @@ model Pet {
   registroClinico     RegistroClinico[]
   responsavelPet      ResponsavelPet[]
   solicitacaoServico  SolicitacaoServico[]
+  rotina              Rotina[]
 
   @@index([racaId], map: "ix_pet_raca")
   @@map("pet")
@@ -960,12 +1013,15 @@ model TratamentoMedicamentoso {
   dosagem          String           @db.VarChar(255)
   viaAdministracao String           @map("via_administracao") @db.VarChar(255)
   intervaloHoras   Int              @map("intervalo_horas")
+  /// Hora da primeira dose em Brasília, para o app mostrar as doses do dia.
+  horaPrimeiraDose String           @default("08:00") @map("hora_primeira_dose") @db.VarChar(5)
   dataInicio       DateTime         @map("data_inicio") @db.Date
   dataFim          DateTime?        @map("data_fim") @db.Date
   status           StatusTratamento
   criadoEm         DateTime         @default(now()) @map("criado_em") @db.Timestamptz(6)
   atualizadoEm     DateTime         @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(6)
   registroClinico  RegistroClinico  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tratamento_medicamentoso_heranca")
+  doseRegistrada   DoseRegistrada[]
 
   @@map("tratamento_medicamentoso")
 }
@@ -1034,6 +1090,9 @@ model Usuario {
   solicitacaoPrivacidade  SolicitacaoPrivacidade[]
   tokenAcesso             TokenAcesso[]
   tutor                   Tutor?
+  rotinaCriada            Rotina[]                  @relation("RotinaCriadaPor")
+  registroRotina          RegistroRotina[]
+  doseRegistrada          DoseRegistrada[]
   perfil                  PerfilAcesso              @relation(fields: [perfilId], references: [id], onUpdate: NoAction, map: "fk_usuario_perfil_id")
 
   @@map("usuario")
@@ -1429,6 +1488,28 @@ enum TipoSolicitacaoPrivacidade {
   CORRECAO_DADOS
 
   @@map("tipo_solicitacao_privacidade")
+}
+
+enum TipoRotina {
+  PASSEIO
+  BANHO
+  ANTIPULGAS
+  VERMIFUGO
+  ESCOVACAO
+  AREIA
+  ALIMENTACAO
+  OUTRO
+
+  @@map("tipo_rotina")
+}
+
+enum FrequenciaRotina {
+  DIARIA
+  SEMANAL
+  MENSAL
+  INTERVALO_DIAS
+
+  @@map("frequencia_rotina")
 }
 
 enum TipoTermo {

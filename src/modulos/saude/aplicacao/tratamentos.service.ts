@@ -81,6 +81,7 @@ export class TratamentosService {
             dosagem: dados.dosagem.trim(),
             viaAdministracao: dados.viaAdministracao.trim(),
             intervaloHoras: dados.intervaloHoras,
+            horaPrimeiraDose: dados.horaPrimeiraDose ?? '08:00',
             dataInicio: new Date(dados.dataInicio),
             dataFim: dados.dataFim ? new Date(dados.dataFim) : null,
             status: 'ATIVO',
