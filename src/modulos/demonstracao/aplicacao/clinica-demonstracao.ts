@@ -25,6 +25,7 @@ import {
 import { Cifragem } from '../../../compartilhado/cripto/cifragem';
 import { PERFIS_EMPRESA_PADRAO } from '../../acesso/dominio/catalogo-permissoes';
 import { sincronizarEspecies } from '../../pet/aplicacao/catalogo-especies.service';
+import { garantirTermosPadrao } from '../../privacidade/aplicacao/termos-padrao.service';
 import {
   dataBrasilia,
   diaDaSemanaBrasilia,
@@ -33,6 +34,7 @@ import {
 import {
   cnpjAleatorio,
   cpfAleatorio,
+  ehEmailDemonstracao,
   emailDemonstracao,
 } from '../dominio/identificadores';
 
@@ -88,6 +90,11 @@ export async function criarClinicaDemonstracao(
 ): Promise<ClinicaCriada> {
   const { agora, sufixo, cifragem, senhaHash } = op;
   await sincronizarEspecies(db);
+  await garantirTermosPadrao(db);
+  const termoCliente = await db.termoUso.findFirst({
+    where: { tipo: TipoTermo.CONSENTIMENTO_CLIENTE },
+    orderBy: { dataVigencia: 'desc' },
+  });
 
   const perfilGlobal = async (nome: string) =>
     (
@@ -517,12 +524,25 @@ export async function criarClinicaDemonstracao(
         tutorId: u.id,
         codigo: `CLI-${String(codigoCliente++).padStart(4, '0')}`,
         nome: t.nome,
-        email,
+        // E-mails do domínio reservado não aparecem para a clínica; fica o telefone.
+        email: ehEmailDemonstracao(email) ? null : email,
         telefone: t.tel,
         dataVinculo: dataBrasilia(agora, -200 + codigoCliente * 17),
         ativo: true,
       },
     });
+    if (termoCliente) {
+      await db.consentimento.create({
+        data: {
+          aceito: true,
+          dataAceite: dataBrasilia(agora, -190 + codigoCliente * 17),
+          meioColeta: MeioColeta.LINK_DIGITAL,
+          ipOrigem: op.ipOrigem ?? '127.0.0.1',
+          clienteId: cliente.id,
+          termoId: termoCliente.id,
+        },
+      });
+    }
     for (const p of t.pets) {
       const criado = await db.pet.create({
         data: {
