@@ -21,6 +21,27 @@ export interface Vacinacao {
   responsavelAplicacao: string;
   observacoes?: string;
   valido: boolean;
+  /** Registrada por uma empresa no atendimento: a carteira mostra o selo com o nome dela. */
+  verificadaPor?: string;
+}
+
+/** Quem registrou a vacina, para o selo de vacina aplicada por uma empresa. */
+const QUEM_REGISTROU = {
+  registradoPor: {
+    select: {
+      empresaEnterprise: { select: { nomeFantasia: true } },
+      funcionarioEnterprise: {
+        select: { empresa: { select: { nomeFantasia: true } } },
+      },
+    },
+  },
+} as const;
+
+interface QuemRegistrou {
+  registradoPor?: {
+    empresaEnterprise: { nomeFantasia: string } | null;
+    funcionarioEnterprise: { empresa: { nomeFantasia: string } } | null;
+  };
 }
 
 const dia = (d: Date) => d.toISOString().slice(0, 10);
@@ -42,7 +63,7 @@ export class VacinacoesService {
     await this.politica.garantir(usuario, petId, 'VACINAS', 'ler');
     const registros = await this.prisma.vacinacao.findMany({
       where: { registroClinico: { petId, valido: true } },
-      include: { registroClinico: true },
+      include: { registroClinico: { include: QUEM_REGISTROU } },
       orderBy: { dataAplicacao: 'asc' },
     });
     return registros.map((r) => this.resposta(r));
@@ -86,7 +107,11 @@ export class VacinacoesService {
           },
         },
       },
-      include: { vacinacao: true, pet: { select: { nome: true } } },
+      include: {
+        vacinacao: true,
+        pet: { select: { nome: true } },
+        ...QUEM_REGISTROU,
+      },
     });
 
     if (dados.dataProximaDose) {
@@ -115,8 +140,15 @@ export class VacinacoesService {
     dataAplicacao: Date;
     dataProximaDose: Date | null;
     responsavelAplicacao: string;
-    registroClinico: { observacoes: string | null; valido: boolean };
+    registroClinico: {
+      observacoes: string | null;
+      valido: boolean;
+    } & QuemRegistrou;
   }): Vacinacao {
+    const quem = r.registroClinico.registradoPor;
+    const empresa =
+      quem?.empresaEnterprise?.nomeFantasia ??
+      quem?.funcionarioEnterprise?.empresa.nomeFantasia;
     return {
       id: r.id,
       nomeVacina: r.nomeVacina,
@@ -127,6 +159,7 @@ export class VacinacoesService {
       responsavelAplicacao: r.responsavelAplicacao,
       observacoes: r.registroClinico.observacoes ?? undefined,
       valido: r.registroClinico.valido,
+      verificadaPor: empresa,
     };
   }
 }

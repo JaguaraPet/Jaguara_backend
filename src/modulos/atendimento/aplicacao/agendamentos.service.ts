@@ -203,6 +203,71 @@ export class AgendamentosService {
     });
   }
 
+  /**
+   * Detalhe do agendamento para a tela de atendimento: serviço com a categoria (que decide os
+   * campos estruturados), pet, tutor e se o tutor liberou o registro de saúde para a empresa.
+   */
+  async detalhe(usuario: UsuarioAutenticado, agendamentoId: string) {
+    const a = await this.prisma.agendamento.findUnique({
+      where: { id: agendamentoId },
+      include: {
+        servico: {
+          select: {
+            id: true,
+            nome: true,
+            categoria: true,
+            empresaId: true,
+            empresa: { select: { nomeFantasia: true } },
+          },
+        },
+        profissional: { select: { nome: true } },
+        pet: {
+          select: {
+            id: true,
+            nome: true,
+            alergiaRestricao: { select: { descricao: true } },
+            responsavelPet: {
+              where: { tipo: 'PRINCIPAL', ativo: true },
+              select: { tutor: { select: { nome: true } } },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    if (!a) throw Erros.naoEncontrado('Agendamento não encontrado');
+    garantirMesmaEmpresa(usuario, a.servico.empresaId);
+    const agora = new Date();
+    const [edicao, semConta] = await Promise.all([
+      this.prisma.compartilhamentoPet.count({
+        where: {
+          petId: a.petId,
+          empresaId: a.servico.empresaId,
+          status: 'ATIVO',
+          escopos: { has: 'EDICAO_CLINICA' },
+          OR: [{ dataExpiracao: null }, { dataExpiracao: { gt: agora } }],
+        },
+      }),
+      this.politicaPet.petDeClienteSemConta(a.servico.empresaId, a.petId),
+    ]);
+    return {
+      id: a.id,
+      dataHoraInicio: a.dataHoraInicio.toISOString(),
+      dataHoraFim: a.dataHoraFim.toISOString(),
+      status: a.status,
+      servicoId: a.servico.id,
+      servicoNome: a.servico.nome,
+      categoria: a.servico.categoria,
+      petId: a.pet.id,
+      petNome: a.pet.nome,
+      alergias: a.pet.alergiaRestricao.map((r) => r.descricao),
+      tutorNome: a.pet.responsavelPet[0]?.tutor.nome ?? null,
+      profissionalNome: a.profissional?.nome ?? null,
+      empresaNome: a.servico.empresa.nomeFantasia,
+      podeRegistrarSaude: edicao > 0 || semConta,
+    };
+  }
+
   /** O responsável confirma pelo lembrete que vai ao agendamento. */
   async confirmarPresenca(
     usuario: UsuarioAutenticado,
