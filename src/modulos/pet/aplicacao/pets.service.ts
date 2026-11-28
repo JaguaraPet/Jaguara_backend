@@ -1,13 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { Armazenamento } from '../../../compartilhado/arquivos/armazenamento';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
-import { idadeEmAnos, podeExcluirPet } from '../dominio/pet';
+import { RACA_OUTRA } from '../dominio/catalogo-especies';
+import {
+  chaveDaFoto,
+  idadeEmAnos,
+  podeExcluirPet,
+  problemaNaFoto,
+} from '../dominio/pet';
 import { PoliticaAcessoPet } from './politica-acesso-pet';
 
 export interface PetEntrada {
   nome: string;
   racaId: string;
+  /** Obrigatória quando a raça escolhida é "Outra (digitar)". */
+  racaDescricao?: string;
   dataNascimento?: string;
   sexo: 'MACHO' | 'FEMEA';
   pesoKg?: number;
@@ -35,6 +45,7 @@ export class PetsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly politica: PoliticaAcessoPet,
+    private readonly armazenamento: Armazenamento,
   ) {}
 
   async listarEspecies() {
@@ -78,11 +89,11 @@ export class PetsService {
     usuario: UsuarioAutenticado,
     dados: PetEntrada,
   ): Promise<Pet> {
-    await this.garantirRaca(dados.racaId);
+    const raca = await this.garantirRaca(dados);
     await this.garantirMicrochipLivre(dados.microchip);
     const pet = await this.prisma.pet.create({
       data: {
-        ...this.dados(dados),
+        ...this.dados(dados, raca.outra),
         status: 'ATIVO',
         responsavelPet: {
           create: {
@@ -128,12 +139,18 @@ export class PetsService {
         'Só os responsáveis alteram os dados do pet (RN30).',
       );
     }
-    await this.garantirRaca(dados.racaId);
+    const raca = await this.garantirRaca(dados);
+    if (raca.especieId !== atual.raca.especieId) {
+      throw Erros.dadosInvalidos(
+        'racaId',
+        'A espécie não muda depois do cadastro. Se precisar, cadastre outro pet.',
+      );
+    }
     if (dados.microchip && dados.microchip !== atual.microchip)
       await this.garantirMicrochipLivre(dados.microchip);
     const pet = await this.prisma.pet.update({
       where: { id: petId },
-      data: this.dados(dados),
+      data: this.dados(dados, raca.outra),
       include: incluirRaca,
     });
     return this.resposta(pet);
@@ -202,15 +219,56 @@ export class PetsService {
     }
   }
 
-  /** RN07: espécie e raça vêm da lista cadastrada. */
-  private async garantirRaca(racaId: string) {
-    if (
-      !(await this.prisma.raca.findUnique({
-        where: { id: racaId },
-        select: { id: true },
-      }))
-    ) {
+  /** RN07: espécie e raça vêm da lista; em "Outra (digitar)", o tutor escreve a raça. */
+  private async garantirRaca(dados: PetEntrada) {
+    const raca = await this.prisma.raca.findUnique({
+      where: { id: dados.racaId },
+      select: { nome: true, especieId: true },
+    });
+    if (!raca) {
       throw Erros.dadosInvalidos('racaId', 'Escolha uma raça da lista.');
+    }
+    const outra = raca.nome === RACA_OUTRA;
+    if (outra && !dados.racaDescricao?.trim()) {
+      throw Erros.dadosInvalidos('racaDescricao', 'Escreva a raça do pet.');
+    }
+    return { especieId: raca.especieId, outra };
+  }
+
+  /** Foto do pet: o app envia direto ao armazenamento pela URL assinada. */
+  async prepararFoto(
+    usuario: UsuarioAutenticado,
+    petId: string,
+    arquivo: { nomeArquivo: string; tamanhoBytes: number },
+  ) {
+    await this.buscar(petId);
+    await this.garantirResponsavel(usuario, petId);
+    const problema = problemaNaFoto(arquivo.nomeArquivo, arquivo.tamanhoBytes);
+    if (problema) throw Erros.dadosInvalidos('nomeArquivo', problema);
+    const chave = chaveDaFoto(petId, randomUUID(), arquivo.nomeArquivo);
+    await this.prisma.pet.update({
+      where: { id: petId },
+      data: { fotoUrl: chave },
+    });
+    return { urlEnvio: this.armazenamento.urlEnvio(chave) };
+  }
+
+  async removerFoto(usuario: UsuarioAutenticado, petId: string): Promise<void> {
+    await this.buscar(petId);
+    await this.garantirResponsavel(usuario, petId);
+    await this.prisma.pet.update({
+      where: { id: petId },
+      data: { fotoUrl: null },
+    });
+  }
+
+  private async garantirResponsavel(
+    usuario: UsuarioAutenticado,
+    petId: string,
+  ) {
+    const nivel = await this.politica.nivel(usuario, petId);
+    if (nivel !== 'RESPONSAVEL_PRINCIPAL' && nivel !== 'RESPONSAVEL') {
+      throw Erros.semPermissao('Só os responsáveis trocam a foto do pet.');
     }
   }
 
@@ -229,10 +287,11 @@ export class PetsService {
     }
   }
 
-  private dados(d: PetEntrada) {
+  private dados(d: PetEntrada, racaOutra: boolean) {
     return {
       nome: d.nome.trim(),
       racaId: d.racaId,
+      racaDescricao: racaOutra ? d.racaDescricao!.trim().slice(0, 80) : null,
       dataNascimento: d.dataNascimento
         ? new Date(`${d.dataNascimento}T00:00:00Z`)
         : null,
@@ -256,13 +315,15 @@ export class PetsService {
     castrado: boolean;
     status: StatusPet;
     fotoUrl: string | null;
+    racaDescricao: string | null;
     raca: { nome: string; especie: { nome: string } };
   }): Pet {
     return {
       id: p.id,
       nome: p.nome,
       racaId: p.racaId,
-      raca: p.raca.nome,
+      racaDescricao: p.racaDescricao ?? undefined,
+      raca: p.racaDescricao ?? p.raca.nome,
       especie: p.raca.especie.nome,
       dataNascimento: p.dataNascimento?.toISOString().slice(0, 10),
       idade: idadeEmAnos(p.dataNascimento, new Date()),
@@ -272,7 +333,10 @@ export class PetsService {
       microchip: p.microchip ?? undefined,
       castrado: p.castrado,
       status: p.status,
-      fotoUrl: p.fotoUrl ?? undefined,
+      // A foto vale por 6 horas; o app pede o pet de novo ao abrir a tela.
+      fotoUrl: p.fotoUrl
+        ? this.armazenamento.urlLeitura(p.fotoUrl, new Date(), 6 * 3600)
+        : undefined,
     };
   }
 }

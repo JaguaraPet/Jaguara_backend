@@ -30,3 +30,30 @@ export function podeExcluirPet(historico: {
 
 export type NivelAcessoPet =
   'RESPONSAVEL_PRINCIPAL' | 'RESPONSAVEL' | 'EMPRESA' | 'NENHUM';
+
+export const TAMANHO_MAXIMO_FOTO = 8 * 1024 * 1024;
+const EXTENSOES_FOTO = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+
+/** O que impede a foto, ou null se ela serve. */
+export function problemaNaFoto(
+  nomeArquivo: string,
+  tamanhoBytes: number,
+): string | null {
+  const extensao = nomeArquivo.split('.').pop()?.toLowerCase() ?? '';
+  if (!nomeArquivo.includes('.') || !EXTENSOES_FOTO.includes(extensao)) {
+    return 'Envie uma foto em JPG, PNG, WEBP ou HEIC.';
+  }
+  if (tamanhoBytes <= 0) return 'A foto está vazia.';
+  if (tamanhoBytes > TAMANHO_MAXIMO_FOTO) return 'A foto passa de 8 MB.';
+  return null;
+}
+
+/** Cada foto nova ganha uma chave nova, para o app não mostrar a antiga do cache. */
+export function chaveDaFoto(
+  petId: string,
+  id: string,
+  nomeArquivo: string,
+): string {
+  const extensao = nomeArquivo.split('.').pop()!.toLowerCase();
+  return `pets/${petId}/foto-${id}.${extensao}`;
+}
