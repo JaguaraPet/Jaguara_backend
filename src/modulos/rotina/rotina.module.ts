@@ -9,6 +9,9 @@ import { EventosService } from './aplicacao/eventos.service';
 import { AlimentacaoController } from './http/alimentacao.controller';
 import { CalendarioExternoController } from './http/calendario-externo.controller';
 import { EventosController } from './http/eventos.controller';
+import { RotinasController } from './http/rotinas.controller';
+import { HojeTutorService } from './aplicacao/hoje-tutor.service';
+import { RotinasService } from './aplicacao/rotinas.service';
 import {
   CalendarioGoogle,
   CalendarioSimulado,
@@ -21,11 +24,14 @@ import {
     EventosController,
     AlimentacaoController,
     CalendarioExternoController,
+    RotinasController,
   ],
   providers: [
     EventosService,
     AlimentacaoService,
     CalendarioExternoService,
+    RotinasService,
+    HojeTutorService,
     {
       // Sem as credenciais do Google, o calendário é simulado (desenvolvimento e testes).
       provide: PROVEDOR_CALENDARIO,

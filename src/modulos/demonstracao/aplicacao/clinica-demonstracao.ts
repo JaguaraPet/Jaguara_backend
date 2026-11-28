@@ -588,6 +588,113 @@ export async function criarClinicaDemonstracao(
     },
   });
 
+  // A família da Marina: o Pedro também cuida do Bento e da Luna (vê quem fez o quê)
+  const pedro = await novoUsuario(
+    emailDemonstracao('pedro', sufixo),
+    perfilTutor,
+    '(11) 98888-1008',
+  );
+  const cpfPedro = cpfAleatorio();
+  await db.tutor.create({
+    data: {
+      id: pedro.id,
+      nome: 'Pedro Costa',
+      cpfCifrado: cifragem.cifrar(cpfPedro),
+      cpfHash: cifragem.indiceCego(cpfPedro),
+      enderecoCidade: 'São Paulo',
+      enderecoUf: 'SP',
+    },
+  });
+  for (const nome of ['Bento', 'Luna']) {
+    await db.responsavelPet.create({
+      data: {
+        petId: pet[nome],
+        tutorId: pedro.id,
+        tipo: TipoResponsavel.ADICIONAL,
+        dataVinculo: agora,
+        ativo: true,
+      },
+    });
+  }
+
+  // Rotinas e um tratamento em andamento, para a tela Hoje do tutor abrir com o dia de verdade
+  const hojeData = dataBrasilia(agora, 0);
+  const rotina = (
+    petNome: string,
+    titulo: string,
+    tipo: 'PASSEIO' | 'ALIMENTACAO' | 'AREIA' | 'ANTIPULGAS',
+    horarios: string[],
+    frequencia: 'DIARIA' | 'MENSAL' = 'DIARIA',
+  ) =>
+    db.rotina.create({
+      data: {
+        petId: pet[petNome],
+        titulo,
+        tipo,
+        frequencia,
+        horarios,
+        dataInicio: dataBrasilia(agora, frequencia === 'MENSAL' ? -30 : -20),
+        criadoPorId: tutorPrincipal,
+      },
+    });
+  const passeio = await rotina('Bento', 'Passeio', 'PASSEIO', [
+    '07:00',
+    '19:00',
+  ]);
+  const comida = await rotina('Bento', 'Comida', 'ALIMENTACAO', [
+    '08:00',
+    '18:00',
+  ]);
+  await rotina('Luna', 'Trocar a areia', 'AREIA', ['09:00']);
+  await rotina('Bento', 'Antipulgas', 'ANTIPULGAS', ['09:00'], 'MENSAL');
+  await db.registroRotina.create({
+    data: {
+      rotinaId: passeio.id,
+      data: hojeData,
+      horario: '07:00',
+      feitoPorId: pedro.id,
+      feitoEm: emBrasilia(agora, 0, '07:20'),
+    },
+  });
+  await db.registroRotina.create({
+    data: {
+      rotinaId: comida.id,
+      data: hojeData,
+      horario: '08:00',
+      feitoPorId: tutorPrincipal,
+      feitoEm: emBrasilia(agora, 0, '08:05'),
+    },
+  });
+  const receita = await db.registroClinico.create({
+    data: {
+      petId: pet.Bento,
+      registradoPorId: funcionario.julia,
+      dataRegistro: emBrasilia(agora, -3, '10:40'),
+      observacoes: `Receitado por Dra. Júlia Andrade · ${nomeFantasia}.`,
+      valido: true,
+      tratamentoMedicamentoso: {
+        create: {
+          medicamento: 'Apoquel 16 mg',
+          dosagem: '1 comprimido',
+          viaAdministracao: 'Oral',
+          intervaloHoras: 12,
+          horaPrimeiraDose: '08:00',
+          dataInicio: dataBrasilia(agora, -3),
+          dataFim: dataBrasilia(agora, 7),
+          status: 'ATIVO',
+        },
+      },
+    },
+  });
+  await db.doseRegistrada.create({
+    data: {
+      tratamentoId: receita.id,
+      previstaPara: emBrasilia(agora, 0, '08:00'),
+      feitoPorId: pedro.id,
+      feitoEm: emBrasilia(agora, 0, '08:10'),
+    },
+  });
+
   // Histórico de vacinas: uma atrasada, uma vencendo e as demais em dia
   const vacina = async (
     petNome: string,
