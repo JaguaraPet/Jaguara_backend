@@ -777,6 +777,8 @@ model Pet {
   microchip           String?               @unique @db.VarChar(255)
   castrado            Boolean
   fotoUrl             String?               @map("foto_url") @db.VarChar(2048)
+  /// Raça escrita pelo tutor quando escolheu "Outra (digitar)".
+  racaDescricao       String?               @map("raca_descricao") @db.VarChar(80)
   status              StatusPet
   dataFalecimento     DateTime?             @map("data_falecimento") @db.Date
   racaId              String                @map("raca_id") @db.Uuid

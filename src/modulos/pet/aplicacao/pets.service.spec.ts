@@ -1,3 +1,4 @@
+import type { Armazenamento } from '../../../compartilhado/arquivos/armazenamento';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
@@ -33,7 +34,8 @@ const petBanco = {
   castrado: true,
   status: 'ATIVO' as const,
   fotoUrl: null,
-  raca: { nome: 'Labrador', especie: { nome: 'Cachorro' } },
+  racaDescricao: null,
+  raca: { nome: 'Labrador', especieId: 'e1', especie: { nome: 'Cachorro' } },
 };
 const entrada = {
   nome: 'Thor',
@@ -88,7 +90,11 @@ describe('PetsService', () => {
           },
         ]),
       },
-      raca: { findUnique: jest.fn().mockResolvedValue({ id: 'r1' }) },
+      raca: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ nome: 'Labrador', especieId: 'e1' }),
+      },
       pet: {
         count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([petBanco]),
@@ -113,6 +119,10 @@ describe('PetsService', () => {
     servico = new PetsService(
       prisma as unknown as PrismaService,
       politica as unknown as PoliticaAcessoPet,
+      {
+        urlEnvio: jest.fn().mockReturnValue('https://s3/envio'),
+        urlLeitura: jest.fn().mockReturnValue('https://s3/foto'),
+      } as unknown as Armazenamento,
     );
   });
 
@@ -215,6 +225,40 @@ describe('PetsService', () => {
     expect(await codigo(servico.desarquivar(tutor, 'p1'))).toBe(
       'SEM_PERMISSAO',
     );
+  });
+  it('deve exigir a raça escrita quando a escolhida é Outra', async () => {
+    prisma.raca.findUnique.mockResolvedValueOnce({
+      nome: 'Outra (digitar)',
+      especieId: 'e1',
+    });
+    await expect(servico.cadastrar(tutor, entrada)).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+    });
+  });
+
+  it('não deve mudar a espécie do pet depois do cadastro', async () => {
+    prisma.raca.findUnique.mockResolvedValueOnce({
+      nome: 'Siamês',
+      especieId: 'e2',
+    });
+    await expect(
+      servico.editar(tutor, 'p1', { ...entrada, microchip: undefined }),
+    ).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
+  it('deve preparar o envio da foto e recusar formato que não é imagem', async () => {
+    await expect(
+      servico.prepararFoto(tutor, 'p1', {
+        nomeArquivo: 'thor.jpg',
+        tamanhoBytes: 1000,
+      }),
+    ).resolves.toEqual({ urlEnvio: 'https://s3/envio' });
+    await expect(
+      servico.prepararFoto(tutor, 'p1', {
+        nomeArquivo: 'thor.pdf',
+        tamanhoBytes: 1000,
+      }),
+    ).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
   });
 });
 

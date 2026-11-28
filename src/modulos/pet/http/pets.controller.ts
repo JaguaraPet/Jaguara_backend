@@ -45,6 +45,11 @@ export class PetEntradaDto {
   racaId: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80, { message: 'Use até 80 caracteres' })
+  racaDescricao?: string;
+
+  @IsOptional()
   @IsDateString(
     { strict: true },
     { message: 'Informe a data no formato AAAA-MM-DD' },
@@ -73,6 +78,18 @@ export class PetEntradaDto {
 
   @IsBoolean({ message: 'Informe se o pet é castrado' })
   castrado: boolean;
+}
+
+export class FotoPetDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  nomeArquivo: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  tamanhoBytes: number;
 }
 
 export class FiltroPetsDto {
@@ -178,5 +195,26 @@ export class PetsController {
     @Param('petId', ParseUUIDPipe) petId: string,
   ): Promise<void> {
     await this.pets.desarquivar(usuario, petId);
+  }
+
+  /** Prepara o envio da foto do pet: devolve a URL para o app enviar o arquivo. */
+  @Autenticado()
+  @Post('pets/:petId/foto')
+  prepararFoto(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('petId', ParseUUIDPipe) petId: string,
+    @Body() dto: FotoPetDto,
+  ) {
+    return this.pets.prepararFoto(usuario, petId, dto);
+  }
+
+  @Autenticado()
+  @Delete('pets/:petId/foto')
+  @HttpCode(204)
+  removerFoto(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('petId', ParseUUIDPipe) petId: string,
+  ): Promise<void> {
+    return this.pets.removerFoto(usuario, petId);
   }
 }

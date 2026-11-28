@@ -36,11 +36,15 @@ export class Armazenamento {
   }
 
   /** URL de leitura para mostrar o arquivo na tela (por exemplo, uma foto). */
-  urlLeitura(chave: string, agora = new Date()): string {
+  urlLeitura(
+    chave: string,
+    agora = new Date(),
+    expiraSegundos = VALIDADE_URL_SEGUNDOS,
+  ): string {
     return assinarUrl(this.credenciais, {
       metodo: 'GET',
       chave,
-      expiraSegundos: VALIDADE_URL_SEGUNDOS,
+      expiraSegundos,
       agora,
     });
   }

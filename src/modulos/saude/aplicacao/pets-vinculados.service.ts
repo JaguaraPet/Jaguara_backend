@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
+import { Armazenamento } from '../../../compartilhado/arquivos/armazenamento';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { idadeEmAnos } from '../../pet/dominio/pet';
 import { motivosDoVinculo, secoesLiberadas } from '../dominio/perfil-empresa';
@@ -12,6 +13,7 @@ export interface PetVinculado {
   nome: string;
   especie: string;
   raca: string;
+  fotoUrl?: string;
   sexo: string;
   idade?: number;
   status: string;
@@ -24,7 +26,10 @@ const dia = (d: Date) => d.toISOString().slice(0, 10);
 /** Pets vinculados à empresa (UC-20) e o perfil com as seções liberadas (UC-22). */
 @Injectable()
 export class PetsVinculadosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly armazenamento?: Armazenamento,
+  ) {}
 
   /** CT-20-01: só pets com compartilhamento ativo, agendamento ou de clientes da empresa (RN24). */
   async listar(
@@ -160,6 +165,8 @@ export class PetsVinculadosService {
     sexo: string;
     status: string;
     dataNascimento: Date | null;
+    fotoUrl?: string | null;
+    racaDescricao?: string | null;
     raca: { nome: string; especie: { nome: string } };
     compartilhamentoPet: { escopos: string[] }[];
     agendamento: { id: string }[];
@@ -170,7 +177,11 @@ export class PetsVinculadosService {
       id: p.id,
       nome: p.nome,
       especie: p.raca.especie.nome,
-      raca: p.raca.nome,
+      raca: p.racaDescricao ?? p.raca.nome,
+      fotoUrl:
+        p.fotoUrl && this.armazenamento
+          ? this.armazenamento.urlLeitura(p.fotoUrl, new Date(), 6 * 3600)
+          : undefined,
       sexo: p.sexo,
       idade: idadeEmAnos(p.dataNascimento, new Date()),
       status: p.status,
