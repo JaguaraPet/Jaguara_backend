@@ -6,6 +6,7 @@ import { ResumoDoDiaController } from './http/resumo-do-dia.controller';
 import { Module } from '@nestjs/common';
 import { AvaliacoesService } from './aplicacao/avaliacoes.service';
 import { AvaliacoesController } from './http/avaliacoes.controller';
+import { criarGeocodificador, Geocodificador } from './infra/geocodificador';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
 import { AcompanhamentoSolicitacoesService } from './aplicacao/acompanhamento-solicitacoes.service';
@@ -57,6 +58,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     LembretesAgendamentoService,
     PerfilPublicoService,
     AvaliacoesService,
+    { provide: Geocodificador, useFactory: criarGeocodificador },
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })

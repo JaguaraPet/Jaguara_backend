@@ -1,8 +1,11 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
+  Matches,
   IsOptional,
   IsString,
   Max,
@@ -55,6 +58,29 @@ export class FiltroEmpresasDto {
   @IsString()
   @MaxLength(120)
   cidade?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  perto?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
+
+  @IsOptional()
+  @Matches(/^\d{5}-?\d{3}$/, { message: 'Informe o CEP com 8 números' })
+  cep?: string;
 
   @IsOptional()
   @Type(() => Number)
