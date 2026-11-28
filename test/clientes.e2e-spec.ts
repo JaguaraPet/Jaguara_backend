@@ -102,6 +102,41 @@ describe('UC-21 · Clientes da empresa com e sem conta (API)', () => {
     expect(consentimento.termo.versao).toBe('1.0');
   });
 
+  it('deve anexar o termo assinado como arquivo e abrir a cópia depois', async () => {
+    const resposta = await autorizado(
+      http().post(`/v1/empresas/${empresaId}/clientes`),
+    )
+      .send({
+        nome: 'Joana Lima',
+        meioConsentimento: 'ASSINATURA_PRESENCIAL',
+        evidenciaArquivo: {
+          nomeArquivo: 'termo joana.pdf',
+          tamanhoBytes: 2048,
+        },
+      })
+      .expect(201);
+    const cliente = resposta.body as Cliente & {
+      urlEnvioTermo: string;
+      possuiTermoAnexado: boolean;
+    };
+    expect(cliente.possuiTermoAnexado).toBe(true);
+    expect(cliente.urlEnvioTermo).toContain('X-Amz-Signature');
+    const termo = await autorizado(
+      http().get(
+        `/v1/empresas/${empresaId}/clientes/${cliente.id}/consentimento/termo`,
+      ),
+    ).expect(200);
+    expect((termo.body as { url: string }).url).toContain('termo_joana.pdf');
+    const troca = await autorizado(
+      http().post(
+        `/v1/empresas/${empresaId}/clientes/${cliente.id}/consentimento/termo`,
+      ),
+    )
+      .send({ nomeArquivo: 'termo.exe', tamanhoBytes: 10 })
+      .expect(422);
+    expect(troca.body).toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
   it('deve exigir a cópia do termo no consentimento presencial', async () => {
     await autorizado(http().post(`/v1/empresas/${empresaId}/clientes`))
       .send({ nome: 'Sem cópia', meioConsentimento: 'ASSINATURA_PRESENCIAL' })
@@ -270,6 +305,6 @@ describe('UC-21 · Clientes da empresa com e sem conta (API)', () => {
     ).expect(200);
     expect(
       (lista.body as Cliente[]).map((c) => c.consentimento).sort(),
-    ).toEqual(['REVOGADO', 'VIGENTE']);
+    ).toEqual(['REVOGADO', 'VIGENTE', 'VIGENTE']);
   });
 });
