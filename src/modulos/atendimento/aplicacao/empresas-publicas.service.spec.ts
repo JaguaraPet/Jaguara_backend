@@ -1,3 +1,4 @@
+import type { AvaliacoesService } from './avaliacoes.service';
 import { ErroNegocio } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { EmpresasPublicasService } from './empresas-publicas.service';
@@ -9,10 +10,13 @@ const empresa = {
   enderecoBairro: 'Centro',
   enderecoCidade: 'São Paulo',
   enderecoUf: 'SP',
+  enderecoCep: '01310100',
+  latitude: null as number | null,
+  longitude: null as number | null,
   servico: [
-    { categoria: 'VACINACAO' as const },
-    { categoria: 'CONSULTA' as const },
-    { categoria: 'CONSULTA' as const },
+    { categoria: 'VACINACAO' as const, preco: { toNumber: () => 90 } },
+    { categoria: 'CONSULTA' as const, preco: { toNumber: () => 150 } },
+    { categoria: 'CONSULTA' as const, preco: { toNumber: () => 120 } },
   ],
 };
 
@@ -34,7 +38,17 @@ describe('EmpresasPublicasService', () => {
         Promise.all(operacoes),
       ),
     };
-    servico = new EmpresasPublicasService(prisma as unknown as PrismaService);
+    servico = new EmpresasPublicasService(
+      prisma as unknown as PrismaService,
+      {
+        resumoDe: jest.fn((ids: string[]) =>
+          Promise.resolve(
+            new Map(ids.map((id) => [id, { media: 4.5, total: 2 }])),
+          ),
+        ),
+      } as unknown as AvaliacoesService,
+      { doCep: jest.fn().mockResolvedValue(null) },
+    );
   });
 
   it('deve paginar e devolver só os dados públicos, com categorias sem repetição', async () => {
@@ -56,6 +70,10 @@ describe('EmpresasPublicasService', () => {
           cidade: 'São Paulo',
           uf: 'SP',
           categorias: ['CONSULTA', 'VACINACAO'],
+          formasPagamento: undefined,
+          notaMedia: 4.5,
+          totalAvaliacoes: 2,
+          precoAPartirDe: 90,
         },
       ],
       total: 1,
@@ -103,5 +121,36 @@ describe('EmpresasPublicasService', () => {
     expect((await servico.perfil('e1')).nomeFantasia).toBe('Clínica');
     prisma.empresaEnterprise.findFirst.mockResolvedValue(null);
     await expect(servico.perfil('x')).rejects.toBeInstanceOf(ErroNegocio);
+  });
+
+  it('deve ordenar por distância a partir da localização e pôr no fim quem não tem coordenadas', async () => {
+    prisma.empresaEnterprise.findMany.mockResolvedValue([
+      {
+        ...empresa,
+        id: 'longe',
+        nomeFantasia: 'Longe',
+        latitude: -23.7,
+        longitude: -46.8,
+      },
+      { ...empresa, id: 'sem', nomeFantasia: 'Sem mapa' },
+      {
+        ...empresa,
+        id: 'perto',
+        nomeFantasia: 'Perto',
+        latitude: -23.561,
+        longitude: -46.656,
+      },
+    ]);
+    const pagina = await servico.buscar({
+      latitude: -23.56,
+      longitude: -46.655,
+      pagina: 1,
+      tamanho: 10,
+    });
+    expect(pagina.itens.map((i) => [i.id, i.distanciaKm])).toEqual([
+      ['perto', 0.2],
+      ['longe', 21.5],
+      ['sem', undefined],
+    ]);
   });
 });

@@ -418,6 +418,9 @@ model EmpresaEnterprise {
   enderecoBairro        String                  @map("endereco_bairro") @db.VarChar(120)
   enderecoCidade        String                  @map("endereco_cidade") @db.VarChar(120)
   enderecoUf            String                  @map("endereco_uf") @db.Char(2)
+  /// Coordenadas do endereço (pelo CEP), para a busca por perto
+  latitude              Decimal?                @db.Decimal(9, 6)
+  longitude             Decimal?                @db.Decimal(9, 6)
   /// Perfil público editado pela empresa (vitrine no app e página /e/{slug})
   slug                  String?                 @unique @db.VarChar(80)
   descricao             String?
