@@ -3,6 +3,7 @@ import { AuditoriaService } from '../../../compartilhado/auditoria/auditoria.ser
 import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
+import { AvaliacoesService } from './avaliacoes.service';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { PublicadorWebhook } from '../../../compartilhado/webhooks/publicador-webhook';
 import {
@@ -34,6 +35,7 @@ export class AtendimentosService {
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
     private readonly webhooks: PublicadorWebhook,
+    private readonly avaliacoes?: AvaliacoesService,
   ) {}
 
   /**
@@ -133,6 +135,8 @@ export class AtendimentosService {
       total: resposta.total,
       finalizadoEm: resposta.finalizadoEm,
     });
+    // Duas horas depois, os responsáveis recebem o pedido de avaliação.
+    await this.avaliacoes?.pedirAvaliacao(agendamentoId);
     return resposta;
   }
 

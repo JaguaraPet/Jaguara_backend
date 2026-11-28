@@ -4,6 +4,8 @@ import { LembretesAgendamentoService } from './aplicacao/lembretes-agendamento.s
 import { ResumoDoDiaService } from './aplicacao/resumo-do-dia.service';
 import { ResumoDoDiaController } from './http/resumo-do-dia.controller';
 import { Module } from '@nestjs/common';
+import { AvaliacoesService } from './aplicacao/avaliacoes.service';
+import { AvaliacoesController } from './http/avaliacoes.controller';
 import { NotificacaoModule } from '../notificacao/notificacao.module';
 import { PetModule } from '../pet/pet.module';
 import { AcompanhamentoSolicitacoesService } from './aplicacao/acompanhamento-solicitacoes.service';
@@ -40,6 +42,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     AtendimentosController,
     ResumoDoDiaController,
     PerfilPublicoController,
+    AvaliacoesController,
   ],
   providers: [
     CatalogoService,
@@ -53,6 +56,7 @@ import { SolicitacoesController } from './http/solicitacoes.controller';
     ResumoDoDiaService,
     LembretesAgendamentoService,
     PerfilPublicoService,
+    AvaliacoesService,
   ],
   exports: [CatalogoService, ClientesService, HorariosService],
 })

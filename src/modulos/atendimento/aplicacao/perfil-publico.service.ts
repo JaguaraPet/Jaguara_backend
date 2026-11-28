@@ -3,6 +3,7 @@ import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
+import { AvaliacoesService } from './avaliacoes.service';
 import { gerarSlug, PADRAO_SLUG, SLUGS_RESERVADOS } from '../dominio/slug';
 
 export const FORMAS_PAGAMENTO = [
@@ -54,7 +55,10 @@ const vazioParaNulo = (v?: string | null) => {
  */
 @Injectable()
 export class PerfilPublicoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly avaliacoes: AvaliacoesService,
+  ) {}
 
   async ler(usuario: UsuarioAutenticado, empresaId: string) {
     garantirMesmaEmpresa(usuario, empresaId);
@@ -151,6 +155,7 @@ export class PerfilPublicoService {
     const { servico, ...dados } = empresa;
     return {
       ...dados,
+      avaliacoes: await this.avaliacoes.publicas(empresa.id),
       servicos: servico.map((s) => ({
         id: s.id,
         nome: s.nome,

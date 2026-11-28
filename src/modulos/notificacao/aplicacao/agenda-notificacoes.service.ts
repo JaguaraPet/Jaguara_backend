@@ -9,7 +9,8 @@ export type OrigemNotificacao =
   | 'EVENTO'
   | 'ALIMENTACAO'
   | 'AGENDAMENTO'
-  | 'ROTINA';
+  | 'ROTINA'
+  | 'AVALIACAO';
 
 export interface NovaNotificacao {
   destinatarioId: string;
