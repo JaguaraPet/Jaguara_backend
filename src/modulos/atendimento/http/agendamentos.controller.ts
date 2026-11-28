@@ -124,6 +124,17 @@ export class AgendamentosController {
     await this.agendamentos.cancelar(usuario, agendamentoId);
   }
 
+  /** Detalhe do agendamento para a tela de atendimento da empresa. */
+  @SomenteEnterprise()
+  @Permissoes('agenda:ler')
+  @Get('agendamentos/:agendamentoId')
+  detalhe(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('agendamentoId', ParseUUIDPipe) agendamentoId: string,
+  ) {
+    return this.agendamentos.detalhe(usuario, agendamentoId);
+  }
+
   /** O tutor confirma, pelo lembrete, que vai ao agendamento. */
   @SomenteTutor()
   @Autenticado()

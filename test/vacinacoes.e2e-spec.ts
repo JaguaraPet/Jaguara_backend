@@ -19,6 +19,7 @@ interface Vacinacao {
 }
 
 describe('UC-12 e UC-13 · Vacinação do pet (API)', () => {
+  let clinicaId: string;
   let app: INestApplication<App>;
   let prisma: PrismaClient;
   let anaId: string;
@@ -41,7 +42,7 @@ describe('UC-12 e UC-13 · Vacinação do pet (API)', () => {
     tokenAna = await entrar(app, 'ana@exemplo.com');
     await criarTutor(prisma, 'bia@exemplo.com', 'Bia');
     tokenBia = await entrar(app, 'bia@exemplo.com');
-    const clinicaId = await criarEmpresa(app, prisma, 'clinica@exemplo.com');
+    clinicaId = await criarEmpresa(app, prisma, 'clinica@exemplo.com');
     tokenClinica = await entrar(app, 'clinica@exemplo.com');
     petId = await criarPet(prisma, anaId);
     await compartilhar(prisma, petId, clinicaId, ['PERFIL_BASICO', 'VACINAS']);
@@ -120,5 +121,26 @@ describe('UC-12 e UC-13 · Vacinação do pet (API)', () => {
     await como(tokenBia, http().get(`/v1/pets/${petId}/vacinacoes`)).expect(
       404,
     );
+  });
+
+  it('deve marcar com o selo da clínica a vacina registrada por ela no atendimento', async () => {
+    await prisma.compartilhamentoPet.updateMany({
+      where: { petId, empresaId: clinicaId },
+      data: { escopos: ['PERFIL_BASICO', 'VACINAS', 'EDICAO_CLINICA'] },
+    });
+    const registrada = await vacinar(tokenClinica, {
+      nomeVacina: 'Antirrábica',
+      dataAplicacao: '2026-11-01',
+      responsavelAplicacao: 'Dra. Júlia · Clínica Teste',
+    }).expect(201);
+    expect(registrada.body).toMatchObject({ verificadaPor: 'Clínica Teste' });
+    const lista = await como(
+      tokenAna,
+      http().get(`/v1/pets/${petId}/vacinacoes`),
+    ).expect(200);
+    const doTutor = (lista.body as { verificadaPor?: string }[]).filter(
+      (v) => !v.verificadaPor,
+    );
+    expect(doTutor.length).toBeGreaterThan(0);
   });
 });
