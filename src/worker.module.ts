@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ArquivosModule } from './compartilhado/arquivos/armazenamento';
 import { validarAmbiente } from './compartilhado/config/ambiente';
 import { AuditoriaModule } from './compartilhado/auditoria/auditoria.module';
 import { FilasModule } from './compartilhado/filas/filas.module';
@@ -16,6 +17,7 @@ import { NotificacaoWorkerModule } from './modulos/notificacao/notificacao-worke
     ConfigModule.forRoot({ isGlobal: true, validate: validarAmbiente }),
     FilasModule,
     PrismaModule,
+    ArquivosModule,
     AuditoriaModule,
     WebhooksModule,
     NotificacaoWorkerModule,

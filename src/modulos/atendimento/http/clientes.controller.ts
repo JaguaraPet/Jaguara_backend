@@ -14,6 +14,7 @@ import {
   IsDateString,
   IsEmail,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -23,6 +24,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   Permissoes,
@@ -38,6 +40,17 @@ import {
   ClienteResposta,
   ClientesService,
 } from '../aplicacao/clientes.service';
+
+export class ArquivoTermoDto {
+  @IsString()
+  @MaxLength(255)
+  nomeArquivo: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  tamanhoBytes: number;
+}
 
 export class NovoClienteDto {
   @IsString()
@@ -72,6 +85,11 @@ export class NovoClienteDto {
   @IsOptional()
   @IsUrl({ require_tld: false }, { message: 'Informe a URL da cópia do termo' })
   evidenciaArquivoUrl?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ArquivoTermoDto)
+  evidenciaArquivo?: ArquivoTermoDto;
 }
 
 export class PetEntradaDto {
@@ -150,6 +168,28 @@ export class ClientesController {
     @Body() dto: PetEntradaDto,
   ) {
     return this.clientes.cadastrarPet(usuario, empresaId, clienteId, dto);
+  }
+
+  /** Anexa ou troca a cópia do termo assinado no balcão (RN41). */
+  @Permissoes('cliente:editar')
+  @Post(':clienteId/consentimento/termo')
+  anexarTermo(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('empresaId', ParseUUIDPipe) empresaId: string,
+    @Param('clienteId', ParseUUIDPipe) clienteId: string,
+    @Body() dto: ArquivoTermoDto,
+  ) {
+    return this.clientes.anexarTermo(usuario, empresaId, clienteId, dto);
+  }
+
+  @Permissoes('cliente:ler')
+  @Get(':clienteId/consentimento/termo')
+  verTermo(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('empresaId', ParseUUIDPipe) empresaId: string,
+    @Param('clienteId', ParseUUIDPipe) clienteId: string,
+  ) {
+    return this.clientes.verTermo(usuario, empresaId, clienteId);
   }
 
   /** Revogação pedida pelo cliente à empresa (RN41). */

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { Armazenamento } from '../../../compartilhado/arquivos/armazenamento';
 import { garantirMesmaEmpresa } from '../../../compartilhado/auth/escopo-empresa';
 import type { UsuarioAutenticado } from '../../../compartilhado/auth/usuario-autenticado';
 import { Ambiente } from '../../../compartilhado/config/ambiente';
@@ -13,6 +14,11 @@ import {
 import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
+import {
+  nomeDaChave,
+  nomeSeguro,
+  problemaNoArquivo,
+} from '../../saude/dominio/documento';
 import {
   codigoCliente,
   DIAS_PRE_CADASTRO,
@@ -29,6 +35,13 @@ export interface NovoCliente {
   observacoes?: string;
   meioConsentimento: 'ASSINATURA_PRESENCIAL' | 'LINK_DIGITAL';
   evidenciaArquivoUrl?: string;
+  /** Cópia do termo assinado enviada pelo sistema (PDF ou foto). */
+  evidenciaArquivo?: { nomeArquivo: string; tamanhoBytes: number };
+}
+
+export interface ArquivoTermo {
+  nomeArquivo: string;
+  tamanhoBytes: number;
 }
 
 export interface ClienteResposta {
@@ -41,7 +54,11 @@ export interface ClienteResposta {
   possuiConta: boolean;
   ativo: boolean;
   consentimento: SituacaoConsentimento;
+  /** O termo assinado está anexado. */
+  possuiTermoAnexado: boolean;
   linkTermo?: string;
+  /** URL para enviar a cópia do termo com PUT, válida por 5 minutos. */
+  urlEnvioTermo?: string;
 }
 
 export interface PetEntrada {
@@ -74,6 +91,7 @@ export class ClientesService {
     private readonly prisma: PrismaService,
     private readonly fila: FilaEmailService,
     private readonly config: ConfigService<Ambiente, true>,
+    private readonly armazenamento?: Armazenamento,
   ) {
     this.cifragem = new Cifragem(
       config.get('CHAVE_CRIPTOGRAFIA', { infer: true }),
@@ -101,12 +119,15 @@ export class ClientesService {
   ): Promise<ClienteResposta> {
     garantirMesmaEmpresa(usuario, empresaId);
     const presencial = dados.meioConsentimento === 'ASSINATURA_PRESENCIAL';
-    if (presencial && !dados.evidenciaArquivoUrl) {
+    if (presencial && !dados.evidenciaArquivoUrl && !dados.evidenciaArquivo) {
       throw Erros.dadosInvalidos(
-        'evidenciaArquivoUrl',
+        'evidenciaArquivo',
         'Anexe a cópia do termo assinado (RN41).',
       );
     }
+    const chaveTermo = dados.evidenciaArquivo
+      ? this.chaveDoTermo(empresaId, dados.evidenciaArquivo)
+      : undefined;
     if (!presencial && !dados.email) {
       throw Erros.dadosInvalidos(
         'email',
@@ -188,7 +209,7 @@ export class ClientesService {
             meioColeta: dados.meioConsentimento,
             aceito: presencial,
             dataAceite: agora,
-            evidenciaUrl: dados.evidenciaArquivoUrl,
+            evidenciaUrl: chaveTermo ?? dados.evidenciaArquivoUrl,
             ipOrigem: ip.slice(0, 255),
             tokenLink: this.hash(token),
             registradoPorId:
@@ -211,6 +232,9 @@ export class ClientesService {
     return {
       ...this.resposta(cliente),
       ...(presencial ? {} : { linkTermo: this.link(token) }),
+      ...(chaveTermo && this.armazenamento
+        ? { urlEnvioTermo: this.armazenamento.urlEnvio(chaveTermo) }
+        : {}),
     };
   }
 
@@ -479,6 +503,74 @@ export class ClientesService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  /** Anexa ou troca a cópia do termo assinado no consentimento presencial vigente. */
+  async anexarTermo(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    clienteId: string,
+    arquivo: ArquivoTermo,
+  ): Promise<{ urlEnvio: string }> {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const consentimento = await this.consentimentoAtual(empresaId, clienteId);
+    if (
+      consentimento.meioColeta !== 'ASSINATURA_PRESENCIAL' ||
+      !consentimento.aceito ||
+      consentimento.dataRevogacao
+    ) {
+      throw Erros.conflito(
+        'TERMO_NAO_PRESENCIAL',
+        'Só o termo assinado no balcão e vigente recebe a cópia anexada.',
+      );
+    }
+    const chave = this.chaveDoTermo(empresaId, arquivo);
+    await this.prisma.consentimento.update({
+      where: { id: consentimento.id },
+      data: { evidenciaUrl: chave },
+    });
+    return { urlEnvio: this.armazenamento!.urlEnvio(chave) };
+  }
+
+  /** Link para abrir a cópia do termo assinado. */
+  async verTermo(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    clienteId: string,
+  ): Promise<{ url: string }> {
+    garantirMesmaEmpresa(usuario, empresaId);
+    const { evidenciaUrl } = await this.consentimentoAtual(
+      empresaId,
+      clienteId,
+    );
+    if (!evidenciaUrl)
+      throw Erros.naoEncontrado('Este cliente não tem termo anexado');
+    // Cadastros antigos guardavam um link externo; os novos, a chave no armazenamento.
+    if (/^https?:\/\//.test(evidenciaUrl)) return { url: evidenciaUrl };
+    return {
+      url: this.armazenamento!.urlDownload(
+        evidenciaUrl,
+        nomeDaChave(evidenciaUrl),
+      ),
+    };
+  }
+
+  private async consentimentoAtual(empresaId: string, clienteId: string) {
+    const consentimento = await this.prisma.consentimento.findFirst({
+      where: { clienteId, cliente: { empresaId } },
+      orderBy: { criadoEm: 'desc' },
+    });
+    if (!consentimento) throw Erros.naoEncontrado('Cliente não encontrado');
+    return consentimento;
+  }
+
+  private chaveDoTermo(empresaId: string, arquivo: ArquivoTermo): string {
+    const problema = problemaNoArquivo(
+      arquivo.nomeArquivo,
+      arquivo.tamanhoBytes,
+    );
+    if (problema) throw Erros.dadosInvalidos('evidenciaArquivo', problema);
+    return `empresas/${empresaId}/termos/${randomUUID()}/${nomeSeguro(arquivo.nomeArquivo)}`;
+  }
+
   private resposta(c: {
     id: string;
     codigo: string;
@@ -488,7 +580,11 @@ export class ClientesService {
     email: string | null;
     tutorId: string | null;
     ativo: boolean;
-    consentimento: { aceito: boolean; dataRevogacao: Date | null }[];
+    consentimento: {
+      aceito: boolean;
+      dataRevogacao: Date | null;
+      evidenciaUrl?: string | null;
+    }[];
   }): ClienteResposta {
     return {
       id: c.id,
@@ -502,6 +598,7 @@ export class ClientesService {
       possuiConta: c.tutorId !== null,
       ativo: c.ativo,
       consentimento: situacaoConsentimento(c.consentimento[0]),
+      possuiTermoAnexado: !!c.consentimento[0]?.evidenciaUrl,
     };
   }
 }
