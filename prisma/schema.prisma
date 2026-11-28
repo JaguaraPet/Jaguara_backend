@@ -1232,6 +1232,7 @@ enum MeioColeta {
   ACEITE_NO_APP
   ASSINATURA_PRESENCIAL
   LINK_DIGITAL
+  IMPORTACAO
 
   @@map("meio_coleta")
 }

@@ -15,6 +15,16 @@ import { Erros } from '../../../compartilhado/erros/erro-negocio';
 import { PrismaService } from '../../../compartilhado/prisma/prisma.service';
 import { FilaEmailService } from '../../notificacao/aplicacao/fila-email.service';
 import {
+  dataDaPlanilha,
+  especieDaPlanilha,
+  MAXIMO_LINHAS_IMPORTACAO,
+  normalizarTexto,
+  problemaNaLinha,
+  sexoDaPlanilha,
+  type LinhaImportacao,
+} from '../dominio/importacao-clientes';
+import { RACA_OUTRA } from '../../pet/dominio/catalogo-especies';
+import {
   nomeDaChave,
   nomeSeguro,
   problemaNoArquivo,
@@ -501,6 +511,186 @@ export class ClientesService {
 
   private hash(token: string) {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Importa clientes de uma planilha: cada linha vira cliente com consentimento registrado pela
+   * declaração da empresa (os clientes já autorizaram o uso dos dados), e o pet da linha,
+   * quando houver. Linhas repetidas ou inválidas são ignoradas com o motivo.
+   */
+  async importar(
+    usuario: UsuarioAutenticado,
+    empresaId: string,
+    dados: { declaracaoConsentimento: boolean; linhas: LinhaImportacao[] },
+    ip: string,
+  ) {
+    garantirMesmaEmpresa(usuario, empresaId);
+    if (!dados.declaracaoConsentimento) {
+      throw Erros.dadosInvalidos(
+        'declaracaoConsentimento',
+        'Confirme que os clientes autorizaram o uso dos dados.',
+      );
+    }
+    if (
+      dados.linhas.length === 0 ||
+      dados.linhas.length > MAXIMO_LINHAS_IMPORTACAO
+    ) {
+      throw Erros.dadosInvalidos(
+        'linhas',
+        `Envie de 1 a ${MAXIMO_LINHAS_IMPORTACAO} clientes por vez.`,
+      );
+    }
+    const termo = await this.prisma.termoUso.findFirst({
+      where: {
+        tipo: 'CONSENTIMENTO_CLIENTE',
+        dataVigencia: { lte: new Date() },
+      },
+      orderBy: { dataVigencia: 'desc' },
+    });
+    if (!termo)
+      throw Erros.conflito(
+        'TERMO_INDISPONIVEL',
+        'Não há termo de consentimento vigente.',
+      );
+    const [existentes, especies] = await Promise.all([
+      this.prisma.cliente.findMany({
+        where: { empresaId },
+        select: { cpfHash: true, email: true, nome: true, telefone: true },
+      }),
+      this.prisma.especie.findMany({ include: { raca: true } }),
+    ]);
+    const chave = (nome: string, telefone?: string | null) =>
+      `${normalizarTexto(nome)}|${(telefone ?? '').replace(/\D/g, '')}`;
+    const cpfs = new Set(existentes.map((c) => c.cpfHash).filter(Boolean));
+    const emails = new Set(existentes.map((c) => c.email).filter(Boolean));
+    const nomes = new Set(existentes.map((c) => chave(c.nome, c.telefone)));
+    let sequencia = await this.prisma.cliente.count({ where: { empresaId } });
+    const agora = new Date();
+    const ignorados: { linha: number; nome?: string; motivo: string }[] = [];
+    let criados = 0;
+    let petsCriados = 0;
+
+    for (const [i, linha] of dados.linhas.entries()) {
+      const numero = i + 2; // a linha 1 da planilha é o cabeçalho
+      const nome = linha.nome?.trim();
+      const motivo = problemaNaLinha(linha);
+      if (motivo) {
+        ignorados.push({ linha: numero, nome, motivo });
+        continue;
+      }
+      const cpf = linha.cpf?.trim() ? normalizarCpf(linha.cpf) : undefined;
+      if (cpf && !cpfValido(cpf)) {
+        ignorados.push({ linha: numero, nome, motivo: 'CPF inválido.' });
+        continue;
+      }
+      const cpfHash = cpf ? this.cifragem.indiceCego(cpf) : undefined;
+      const email = linha.email?.trim().toLowerCase() || undefined;
+      const telefone = linha.telefone?.trim() || undefined;
+      if (
+        (cpfHash && cpfs.has(cpfHash)) ||
+        (email && emails.has(email)) ||
+        nomes.has(chave(nome, telefone))
+      ) {
+        ignorados.push({
+          linha: numero,
+          nome,
+          motivo: 'Já é cliente da empresa.',
+        });
+        continue;
+      }
+      const especie = linha.petNome?.trim()
+        ? especieDaPlanilha(especies, linha.petEspecie!)
+        : undefined;
+      if (linha.petNome?.trim() && !especie) {
+        ignorados.push({
+          linha: numero,
+          nome,
+          motivo: `Espécie "${linha.petEspecie}" não reconhecida.`,
+        });
+        continue;
+      }
+      const raca = especie
+        ? this.racaDaPlanilha(especie.raca, linha.petRaca)
+        : undefined;
+      const nascimento = linha.petNascimento?.trim()
+        ? dataDaPlanilha(linha.petNascimento)
+        : null;
+
+      await this.prisma.cliente.create({
+        data: {
+          empresaId,
+          codigo: codigoCliente(++sequencia),
+          nome,
+          telefone,
+          email,
+          ...(cpf ? { cpfCifrado: this.cifragem.cifrar(cpf), cpfHash } : {}),
+          observacoes: linha.observacoes?.trim() || null,
+          dataVinculo: agora,
+          ativo: true,
+          consentimento: {
+            create: {
+              termoId: termo.id,
+              meioColeta: 'IMPORTACAO',
+              aceito: true,
+              dataAceite: agora,
+              ipOrigem: ip.slice(0, 255),
+              registradoPorId:
+                usuario.tipo === 'FUNCIONARIO' ? usuario.sub : undefined,
+            },
+          },
+          ...(raca
+            ? {
+                clientePet: {
+                  create: {
+                    pet: {
+                      create: {
+                        nome: linha.petNome!.trim(),
+                        racaId: raca.id,
+                        racaDescricao: raca.descricao,
+                        sexo: sexoDaPlanilha(linha.petSexo),
+                        dataNascimento: nascimento
+                          ? new Date(`${nascimento}T00:00:00Z`)
+                          : null,
+                        castrado: false,
+                        status: 'ATIVO',
+                      },
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+      if (cpfHash) cpfs.add(cpfHash);
+      if (email) emails.add(email);
+      nomes.add(chave(nome, telefone));
+      criados++;
+      if (raca) petsCriados++;
+    }
+    return { criados, petsCriados, ignorados };
+  }
+
+  /** Raça pelo nome; sem raça, "Sem raça definida"; raça desconhecida vira "Outra" com o texto. */
+  private racaDaPlanilha(
+    racas: { id: string; nome: string }[],
+    texto?: string,
+  ): { id: string; descricao: string | null } | undefined {
+    const t = texto?.trim();
+    const achar = (n: string) =>
+      racas.find((r) => normalizarTexto(r.nome) === normalizarTexto(n));
+    if (t) {
+      const exata = achar(t);
+      if (exata) return { id: exata.id, descricao: null };
+      const outra = achar(RACA_OUTRA);
+      if (outra) return { id: outra.id, descricao: t.slice(0, 80) };
+    }
+    const srd = achar('Sem raça definida') ?? achar(RACA_OUTRA) ?? racas[0];
+    return srd
+      ? {
+          id: srd.id,
+          descricao: srd.nome === RACA_OUTRA ? 'Não informada' : null,
+        }
+      : undefined;
   }
 
   /** Anexa ou troca a cópia do termo assinado no consentimento presencial vigente. */

@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -50,6 +52,68 @@ export class ArquivoTermoDto {
   @IsInt()
   @Min(1)
   tamanhoBytes: number;
+}
+
+export class LinhaImportacaoDto {
+  @IsString()
+  @MaxLength(255)
+  nome: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  telefone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  cpf?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  observacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  petNome?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  petEspecie?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  petRaca?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  petSexo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  petNascimento?: string;
+}
+
+export class ImportacaoClientesDto {
+  @IsBoolean({ message: 'Confirme a declaração de consentimento' })
+  declaracaoConsentimento: boolean;
+
+  @IsArray()
+  @ArrayMaxSize(500, { message: 'Envie até 500 clientes por vez' })
+  @ValidateNested({ each: true })
+  @Type(() => LinhaImportacaoDto)
+  linhas: LinhaImportacaoDto[];
 }
 
 export class NovoClienteDto {
@@ -156,6 +220,19 @@ export class ClientesController {
     @Ip() ip: string,
   ): Promise<ClienteResposta> {
     return this.clientes.cadastrar(usuario, empresaId, dto, ip);
+  }
+
+  /** Importação de clientes por planilha (CSV lido na web). */
+  @Permissoes('cliente:editar')
+  @Auditar({ acao: 'CLIENTES_IMPORTADOS', entidade: 'Cliente', nivel: 'INFO' })
+  @Post('importacao')
+  importar(
+    @UsuarioAtual() usuario: UsuarioAutenticado,
+    @Param('empresaId', ParseUUIDPipe) empresaId: string,
+    @Body() dto: ImportacaoClientesDto,
+    @Ip() ip: string,
+  ) {
+    return this.clientes.importar(usuario, empresaId, dto, ip);
   }
 
   /** Pet de cliente sem conta (ADR-010). */

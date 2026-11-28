@@ -299,12 +299,68 @@ describe('UC-21 · Clientes da empresa com e sem conta (API)', () => {
     expect(await prisma.cliente.findUnique({ where: { id } })).toBeNull();
   });
 
+  it('deve importar clientes da planilha com os pets e ignorar repetidos e inválidos', async () => {
+    await prisma.raca.create({
+      data: {
+        nome: 'Outra (digitar)',
+        especieId: (await prisma.especie.findFirstOrThrow()).id,
+      },
+    });
+    await autorizado(
+      http().post(`/v1/empresas/${empresaId}/clientes/importacao`),
+    )
+      .send({ declaracaoConsentimento: false, linhas: [{ nome: 'X' }] })
+      .expect(422);
+    const resposta = await autorizado(
+      http().post(`/v1/empresas/${empresaId}/clientes/importacao`),
+    )
+      .send({
+        declaracaoConsentimento: true,
+        linhas: [
+          {
+            nome: 'Paulo Reis',
+            telefone: '(11) 97777-0000',
+            petNome: 'Bob',
+            petEspecie: 'cão',
+            petRaca: 'Mestiço de beagle',
+            petSexo: 'M',
+            petNascimento: '10/02/2020',
+          },
+          { nome: 'Paulo Reis', telefone: '11977770000' },
+          { nome: '', email: 'sem@nome.com' },
+          { nome: 'Rita', petNome: 'Fofa', petEspecie: 'Dragão' },
+        ],
+      })
+      .expect(201);
+    expect(resposta.body).toEqual({
+      criados: 1,
+      petsCriados: 1,
+      ignorados: [
+        { linha: 3, nome: 'Paulo Reis', motivo: 'Já é cliente da empresa.' },
+        { linha: 4, nome: '', motivo: 'Sem nome.' },
+        { linha: 5, nome: 'Rita', motivo: 'Espécie "Dragão" não reconhecida.' },
+      ],
+    });
+    const pet = await prisma.pet.findFirstOrThrow({ where: { nome: 'Bob' } });
+    expect(pet).toMatchObject({
+      racaDescricao: 'Mestiço de beagle',
+      sexo: 'MACHO',
+    });
+    const consentimento = await prisma.consentimento.findFirstOrThrow({
+      where: { cliente: { nome: 'Paulo Reis' } },
+    });
+    expect(consentimento).toMatchObject({
+      meioColeta: 'IMPORTACAO',
+      aceito: true,
+    });
+  });
+
   it('deve listar os clientes com a situação do consentimento', async () => {
     const lista = await autorizado(
       http().get(`/v1/empresas/${empresaId}/clientes`),
     ).expect(200);
     expect(
       (lista.body as Cliente[]).map((c) => c.consentimento).sort(),
-    ).toEqual(['REVOGADO', 'VIGENTE', 'VIGENTE']);
+    ).toEqual(['REVOGADO', 'VIGENTE', 'VIGENTE', 'VIGENTE']);
   });
 });
